@@ -28,35 +28,43 @@ classdef MWikiClient < handle
         end
         
         
-        function response = postParams(obj, body, headers, method)
-        % High-level http-request encapsulating a 'struct' body into form-encoded parameters.
+        function response = callApi(obj, varargin)
+        % Http-request with MW-error handling that preserves the response for examination.
         %
-        %   body:   struct-array | matlab.net.http.MessageBody | matlab.net.QueryParameter
-        %   headers:  (optional) matlab.net.http.HeaderField | [] | {}
-        %   method:   (optional) default: 'POST'
-        %   response: matlab.net.http.ResponseMessage
+        % SYNTAX
+        %   response = api(obj, body, headers, method)
+        % INPUT
+        %   - body:     {optional) string | struct | matlab.net.(QueryParameter | http.MessageBody)
+        %   - headers:  (optional) matlab.net.http.HeaderField | [] | {}
+        %   - method:   (optional) default: GET if `body` is empty, POST otherwise.
+        % OUTPUT
+        %   - response: matlab.net.http.ResponseMessage
+        % RAISE
+        %   - DatumEx: the Datum contains the original response.
+        %   - Other http-errors.
+        % NOTES
+        %   - A struct-body (or QueryParameter s) are posted as urlencoded-form-params.
+        %   - On error, retrieve the response using this on the command-line::
+        %
+        %       MException.last.Datum
 
-
-            if nargin < 3 || isempty(headers)
-                headers = {};
-                if nargin < 4 || isempty(method)
-                    method = 'POST';
-                end
-            end
-            
             uri = obj.WikiUrl;
-            if isstruct(body)
-                ctf = matlab.net.http.field.ContentTypeField("application/x-www-form-urlencoded");
-                headers = [ctf, headers];
-                body = matlab.net.QueryParameter(body);
-            end
-            request = matlab.net.http.RequestMessage(method, headers, string(body));
-            response = obj.Session.sendRequest(uri, request);
-            
-            if response.StatusCode ~= matlab.net.http.StatusCode.OK
-                error('%s: \n\n%s', response.StatusCode, join_cellstr(response.Body));
-            else
-                % TODO: more MW-error-handling HERE.
+            response = obj.Session.send(uri, varargin{:});
+            result = response.Body.Data;
+            apiErr = response.Header.getFields("MediaWiki-API-Error");
+            if isfield(result, 'error')
+                dex = DatumError(response, 'MWikiClient:gotError', ...
+                    '%s', sprintf('%s: MediaWiki-API-Error: %s\n\n%s', ...
+                    uri, result.error.code, result.error.info));
+                throw(dex);
+            elseif ~isempty(apiErr)
+                dex = DatumError(response, 'MWikiClient:APIError', ...
+                    '%s', sprintf('%s: %s\n\n%s', uri, apiErr, response.Body.Data));
+                throw(dex);
+            elseif ischar(result) && contains(result, '<title>MediaWiki API help')
+                dex = DatumError(response, 'MWikiClient:gotHelpPage', ...
+                    '%s', sprintf('%s: returned the help-page! (no action?)', uri));
+                throw(dex);
             end
         end
 
@@ -78,7 +86,7 @@ classdef MWikiClient < handle
             params.meta = 'tokens';
             params.type = type;
 
-            response = obj.postParams(params);
+            response = obj.callApi(params);
             token = response.Body.Data.query.tokens.([type 'token']);
         end
         
@@ -96,16 +104,19 @@ classdef MWikiClient < handle
             params.lgname = user;
             params.lgpassword = pswd; 
             
-            response = obj.postParams(params);
+            response = obj.callApi(params);
             login = response.Body.Data.login;
             
-            if login.result ~= 'Success'
-                error('Wiki(%s): cannot login due to: %s, %s', string(obj.WikiUrl), login.result, login.reason);
+            if ~strcmp(login.result, 'Success')
+                dex = DatumError(response, 'MWikiClient:loginDenied', ...
+                    '%s', sprintf('%s: cannot login due to: %s, %s', ...
+                    string(obj.WikiUrl), login.result, login.reason));
+                throw(dex);
             end
         end
         
         
-        function response = ask(obj, conditions, printouts, parameters)
+        function response = askargs(obj, conditions, printouts, parameters)
         % Ask a Semantic MediaWiki query.
         %
         %   conditions:     string | cellstr
@@ -120,11 +131,11 @@ classdef MWikiClient < handle
         %     All search results, A valid query with zero results will not raise.
         %
         % Examples:
-        %   conditions  = "[[Category:Cars]]|[[Actual mass::+]]";
-        %   printouts   = {"Vehicle OEM", "Actual mass"};
+        %   conditions  = {"Category:Cars", "Actual mass::+"};
+        %   printouts   = "Actual mass";
         %   parameters  = {"sort%3DActual%20mass", "order%3Ddesc"};
         %   
-        %   response = mwclient.ask(conditions, printouts, parameters);
+        %   response = mwclient.askargs(conditions, printouts, parameters);
         %   answers = response.Body.Data.query;
         %   answers = answers.results; % might not be there if empty!
         %
@@ -139,9 +150,9 @@ classdef MWikiClient < handle
             params.conditions = join_cellstr(conditions, '|', 'conditions');
             params.printouts = join_cellstr(printouts, '|', 'printouts');
             params.parameters = join_cellstr(parameters, '|', 'parameters');
-            %params.api_version = '3';  % results as json-list on smw-v3.+
+            %params.callApi_version = '3';  % results as json-list on smw-v3.+
             
-            response = obj.postParams(params);
+            response = obj.callApi(params);
         end
     end
 end
@@ -159,6 +170,7 @@ function joined = join_cellstr(c, delim, errlabel)
     elseif isempty(c)
         joined = '';
     else
-        error('Expected string or cellstr for `%s`, was %s: %s', errlabel, class(c), c);
+        error('Expected string or cellstr for `%s`, was %s: %s', ...
+            string(errlabel), class(c), string(c));
     end
 end
