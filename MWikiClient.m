@@ -1,5 +1,12 @@
 classdef MWikiClient < handle
 % Mimic https://github.com/mwclient/mwclient/blob/master/mwclient/client.py
+%
+%
+% EXAMPLE:
+%   mw = MWikiClient('https://www.mediawiki.org/w/api.php');
+%   mw.login('botname', 'BOTPaSSwOrd');
+%   mw.ask(...);
+%
 % Author: ankostis
 
     properties
@@ -10,7 +17,10 @@ classdef MWikiClient < handle
         function obj = MWikiClient(wikiUrl)
         % Initiates internally a new session.
         %
+        % INPUT
         %   wikiUrl:    string | matlab.net.URI
+
+            narginchk(1, 1);
             
             if isa(wikiUrl, 'matlab.net.URI')
                 obj.WikiUrl = wikiUrl;
@@ -48,6 +58,8 @@ classdef MWikiClient < handle
         %
         %       MException.last.Datum
 
+            narginchk(1, 4);
+            
             uri = obj.WikiUrl;
             response = obj.Session.send(uri, varargin{:});
             result = response.Body.Data;
@@ -57,11 +69,11 @@ classdef MWikiClient < handle
                     '%s: MediaWiki-API-Error: %s\n\n%s', ...
                     uri, result.error.code, result.error.info).throw();
             elseif ~isempty(apiErr)
-                    '%s', sprintf('%s: %s\n\n%s', uri, apiErr, response.Body.Data));
-                throw(dex);
+                DatumError(response, 'MWikiClient:APIError', ...
+                    '%s: %s\n\n%s', uri, apiErr, response.Body.Data).throw();
             elseif ischar(result) && contains(result, '<title>MediaWiki API help')
-                    '%s', sprintf('%s: returned the help-page! (no action?)', uri));
-                throw(dex);
+                DatumError(response, 'MWikiClient:gotHelpPage', ...
+                    '%s: returned just the help-page! (no `action` given?)', uri).throw();
             end
         end
 
@@ -69,7 +81,9 @@ classdef MWikiClient < handle
         function token = newToken(obj, type)
         % Asks a new token from MWiki API.
         %
-        %   type:   csrf(default) | watch | patrol | rollback | userrights | login
+        % INPUT
+        %   type:   (optional) csrf(default) | watch | patrol | rollback | userrights | login
+        % OUTPUT
         %   token:  str
             
             if nargin < 2 || isempty(type) || ~any(strcmp({'watch', 'patrol', 'rollback', 'userrights', 'login'}, type))
@@ -88,10 +102,13 @@ classdef MWikiClient < handle
         end
         
             
-        function response = login(obj, user, pswd)
+        function obj = login(obj, user, pswd)
         % Authenticates session with the specified credentials.
         %
+        % INPUT
         %   user/pswd:    string
+            
+            narginchk(3, 3);
             
             params.lgtoken = obj.newToken('login');
             
@@ -115,32 +132,39 @@ classdef MWikiClient < handle
         function response = askargs(obj, conditions, printouts, parameters)
         % Ask a Semantic MediaWiki query.
         %
+        % SYNTAX:
+        %   response = askargs(obj, conditions, [printouts, [parameters ]])
+        % INPUT:
         %   conditions:     string | cellstr
-        %   printouts:      string | cellstr
-        %   parameters:     string | cellstr
-        %
-        % API docs: 
-        %   - https://semantic-mediawiki.org/wiki/Ask_API (askargs)
-        %   - https://www.semantic-mediawiki.org/w/api.php?action=help&modules=askargs
-        %
-        % Return:
+        %   printouts:      (optional) string | cellstr
+        %   parameters:     (optional) string | cellstr
+        % OUTPUT:
         %     All search results, A valid query with zero results will not raise.
-        %
-        % Examples:
+        % API docs: 
+        %   - https://semantic-mediawiki.org/wiki/Ask_API
+        %   - https://www.semantic-mediawiki.org/w/api.php?action=help&modules=askargs
+        % EXAMPLE:
         %   conditions  = {"Category:Cars", "Actual mass::+"};
         %   printouts   = "Actual mass";
         %   parameters  = {"sort%3DActual%20mass", "order%3Ddesc"};
         %   
         %   response = mwclient.askargs(conditions, printouts, parameters);
-        %   answers = response.Body.Data.query;
-        %   answers = answers.results; % might not be there if empty!
+        %   items = response.Body.Data.query.results;  % Might not be there if empty!
         %
-        %     >>>     for title, data in answer.items()
-        %     >>>         print(title)
-        %     >>>         print(data)
+        %    for i = items
+        %        disp(i);
+        %    end
         %
         % Adapted from https://github.com/mwclient/mwclient/blob/030cf8aa3b3a7acc9386412461c62049833d612a/mwclient/client.py#L1087
         
+            narginchk(2, 4);
+            if ~exist('printouts', 'var') || isempty(printouts)
+                printouts = '';
+            end
+            if ~exist('parameters', 'var') || isempty(parameters)
+                parameters = '';
+            end
+
             params.format = 'json';
             params.action = 'askargs';
             params.conditions = join_cellstr(conditions, '|', 'conditions');
@@ -159,6 +183,8 @@ end
 function joined = join_cellstr(c, delim, errlabel)
 % Joins possibly empty celsstrings, string-arrays or chars.
 
+    narginchk(3, 3);
+    
     if iscellstr(c) || isstring(c)
         joined = strjoin(c, delim);
     elseif ischar(c)

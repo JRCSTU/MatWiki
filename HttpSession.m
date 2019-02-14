@@ -1,6 +1,13 @@
 classdef HttpSession < handle
-    % Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
-    % Works only under R2018b due to unsupported ContentTypeField("application/x-www-form-urlencoded")!
+    % EXAMPLES:
+    %   s = HttpSession();
+    % p.action = 'query';
+    % p.action = 'query';
+    % p.action = 'query';
+    %   s.send('https://www.mediawiki.org/w/api.php', 'hello!');
+    % NOTES:
+    %   - NEED Matlab >= R2018b due to unsupported ContentTypeField("application/x-www-form-urlencoded")!
+    %   - Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
 
     properties
         % matlab.net.http.HTTPOptions persists across requests to reuse  previous
@@ -106,17 +113,17 @@ classdef HttpSession < handle
         %
         %       MException.last.Datum
 
-            if nargin < 3 || isempty(body)
+            if ~exist('body', 'var') || isempty(body)
                 body = [];
             end
-            if nargin < 5 || isempty(method)
+            if ~exist('method', 'var') || isempty(method)
                 if isempty(body)
                     method = 'GET';
                 else
                     method = 'POST';
                 end
             end
-            if nargin < 4 || isempty(headers)
+            if ~exist('headers', 'var') || isempty(headers)
                 headers = [];
             end
             
