@@ -53,16 +53,13 @@ classdef MWikiClient < handle
             result = response.Body.Data;
             apiErr = response.Header.getFields("MediaWiki-API-Error");
             if isfield(result, 'error')
-                dex = DatumError(response, 'MWikiClient:gotError', ...
-                    '%s', sprintf('%s: MediaWiki-API-Error: %s\n\n%s', ...
-                    uri, result.error.code, result.error.info));
-                throw(dex);
+                DatumError(response, 'MWikiClient:gotError', ...
+                    '%s: MediaWiki-API-Error: %s\n\n%s', ...
+                    uri, result.error.code, result.error.info).throw();
             elseif ~isempty(apiErr)
-                dex = DatumError(response, 'MWikiClient:APIError', ...
                     '%s', sprintf('%s: %s\n\n%s', uri, apiErr, response.Body.Data));
                 throw(dex);
             elseif ischar(result) && contains(result, '<title>MediaWiki API help')
-                dex = DatumError(response, 'MWikiClient:gotHelpPage', ...
                     '%s', sprintf('%s: returned the help-page! (no action?)', uri));
                 throw(dex);
             end
@@ -108,10 +105,9 @@ classdef MWikiClient < handle
             login = response.Body.Data.login;
             
             if ~strcmp(login.result, 'Success')
-                dex = DatumError(response, 'MWikiClient:loginDenied', ...
-                    '%s', sprintf('%s: cannot login due to: %s, %s', ...
-                    string(obj.WikiUrl), login.result, login.reason));
-                throw(dex);
+                DatumError(response, 'MWikiClient:loginDenied', ...
+                    '%s: cannot login due to: %s, %s', ...
+                    string(obj.WikiUrl), login.result, login.reason).throw();
             end
         end
         
@@ -170,7 +166,6 @@ function joined = join_cellstr(c, delim, errlabel)
     elseif isempty(c)
         joined = '';
     else
-        error('Expected string or cellstr for `%s`, was %s: %s', ...
-            string(errlabel), class(c), string(c));
+        error('Expected string or cellstr for `%s`, was %s: %s', errlabel, class(c), c);
     end
 end
