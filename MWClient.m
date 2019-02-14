@@ -129,6 +129,7 @@ classdef MWClient < handle
                 type = 'csrf'; 
             end 
             
+            apirams = obj.DefaultParams;
             apirams.format = 'json';
             apirams.action = 'query';
             apirams.meta = 'tokens';
