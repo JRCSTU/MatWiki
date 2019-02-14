@@ -14,7 +14,7 @@ classdef MWikiClient < handle
         Session  
         % matlab.net.URI
         WikiUrl   
-        % A struct with params to send on every API call.
+        % A struct with class-wide params to send on every API call.
         DefaultParams  = struct('format', 'json');  %, 'formatversion', 2, 'errorformat', 'plaintext');
     end
     
@@ -23,18 +23,23 @@ classdef MWikiClient < handle
     end
     
     methods
-        function obj = MWikiClient(wikiUrl)
+        function obj = MWikiClient(wikiUrl, defaultApiParams)
         % Initiates internally a new session.
         %
         % INPUT
         %   wikiUrl:    string | matlab.net.URI
+        %   defaultApiParams:  struct | []
+        %       overrides for the new instance only
 
-            narginchk(1, 1);
+            narginchk(1, 2);
             
             if isa(wikiUrl, 'matlab.net.URI')
                 obj.WikiUrl = wikiUrl;
             else
                 obj.WikiUrl = matlab.net.URI(wikiUrl);
+            end
+            if exist('defaultApiParams', 'var')
+                obj.DefaultParams = defaultApiParams;
             end
             obj.newSession();
         end
@@ -43,7 +48,7 @@ classdef MWikiClient < handle
         function newSession(obj)
         % Forgets old session and initiates a new one;  must call `login()` afterwards.
         
-            obj.Session = HttpSession;
+            obj.Session = HttpSession();
         end
         
         
@@ -124,12 +129,12 @@ classdef MWikiClient < handle
                 type = 'csrf'; 
             end 
             
-            params.format = 'json';
-            params.action = 'query';
-            params.meta = 'tokens';
-            params.type = type;
+            apirams.format = 'json';
+            apirams.action = 'query';
+            apirams.meta = 'tokens';
+            apirams.type = type;
 
-            response = obj.callApi(params);
+            response = obj.callApi(apirams);
             token = response.Body.Data.query.tokens.([type 'token']);
         end
         
@@ -142,15 +147,15 @@ classdef MWikiClient < handle
             
             narginchk(3, 3);
             
-            params.lgtoken = obj.newToken('login');
+            apirams = obj.DefaultParams;
+            apirams.lgtoken = obj.newToken('login');
             
-            params.format = 'json';
-            params.action = 'login';
-            params.lgdomain = ''; 
-            params.lgname = user;
-            params.lgpassword = pswd; 
+            apirams.action = 'login';
+            apirams.lgdomain = ''; 
+            apirams.lgname = user;
+            apirams.lgpassword = pswd; 
             
-            response = obj.callApi(params);
+            response = obj.callApi(apirams);
             login = response.Body.Data.login;
             
             if ~strcmp(login.result, 'Success')
@@ -197,14 +202,14 @@ classdef MWikiClient < handle
                 parameters = '';
             end
             
-            params.format = 'json';
-            params.action = 'askargs';
-            params.conditions = join_cellstr(conditions, '|', 'conditions');
-            params.printouts = join_cellstr(printouts, '|', 'printouts');
-            params.parameters = join_cellstr(parameters, '|', 'parameters');
-            %params.callApi_version = '3';  % results as json-list on smw-v3.+
+            apirams = obj.DefaultParams;
+            apirams.action = 'askargs';
+            apirams.conditions = join_cellstr(conditions, '|', 'conditions');
+            apirams.printouts = join_cellstr(printouts, '|', 'printouts');
+            apirams.parameters = join_cellstr(parameters, '|', 'parameters');
+            %apirams.callApi_version = '3';  % results as json-list on smw-v3.+
             
-            response = obj.callApi(params);
+            response = obj.callApi(apirams);
         end
     end
 end

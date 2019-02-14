@@ -12,17 +12,35 @@ classdef HttpSession < handle
     properties
         % matlab.net.http.HTTPOptions persists across requests to reuse  previous
         % Credentials in it for subsequent authentications
-        Options = matlab.net.http.HTTPOptions('ConnectTimeout',20);
+        Options;
 
         % a containers.Map object where: 
         %   key is uri.Host; 
         %   value is "info" struct containing:
         %       cookies: vector of matlab.net.http.Cookie or empty
         %       uri: target matlab.net.URI if redirect, or empty
-        Infos = containers.Map;
+        Infos;
     end
 
     methods
+        function obj = HttpSession(varargin)
+        % SYNTAX:
+        %   obj = HttpSession()
+        %   obj = HttpSession(options)
+        
+            p = inputParser;
+            p.addOptional('options', ...
+                matlab.net.http.HTTPOptions('ConnectTimeout',20), ...
+                @(x) isa(x, 'matlab.net.http.HTTPOptions'));
+            p.parse(varargin{:});
+            
+            obj.Options = p.Results.options;
+
+            obj.Options = matlab.net.http.HTTPOptions('ConnectTimeout',20);
+            obj.Infos = containers.Map;
+        end
+        
+        
         function cookies = getCookiesFor(obj, uri)
         % Fetches stored cookies for some URL.
         %
