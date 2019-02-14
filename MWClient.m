@@ -16,7 +16,7 @@ classdef MWClient < handle
         WikiUrl   
         % A struct with class-wide params to send on every API call.
         DefaultParams  = struct('format', 'json', 'formatversion', 2, 'errorformat', 'plaintext');
-        
+        % Stored here for debug.
         lastResponse
     end
     
@@ -170,7 +170,7 @@ classdef MWClient < handle
         end
         
         
-        function response = askargs(obj, conditions, printouts, parameters)
+        function results = askargs(obj, conditions, printouts, parameters)
         % Ask a Semantic MediaWiki query.
         %
         % SYNTAX:
@@ -180,7 +180,8 @@ classdef MWClient < handle
         %   printouts:      (optional) string | cellstr
         %   parameters:     (optional) string | cellstr
         % OUTPUT:
-        %     All search results, A valid query with zero results will not raise.
+        %   results: struct
+        %       all results (valid query with zero results will not raise).
         % API docs: 
         %   - https://semantic-mediawiki.org/wiki/Ask_API
         %   - https://www.semantic-mediawiki.org/w/api.php?action=help&modules=askargs
@@ -214,6 +215,8 @@ classdef MWClient < handle
             %apirams.callApi_version = '3';  % results as json-list on smw-v3.+
             
             response = obj.callApi(apirams);
+            
+            results = response.Body.Data.query.results;
         end
     end
 end
