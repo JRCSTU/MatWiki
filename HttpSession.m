@@ -82,7 +82,7 @@ classdef HttpSession < handle
             %   - request: matlab.net.http.RequestMessage
             % OUTPUT:
             %   - response: matlab.net.http.ResponseMessage
-            %   - history: matlab.net.http.ResponseMessage
+            %   - history: matlab.net.http.LogRecord
             % NOTES:
             %   - Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
         
@@ -154,7 +154,7 @@ classdef HttpSession < handle
         end
         
 
-        function response = send(obj, uri, body, headers, method)
+        function [response, history] = send(obj, uri, body, headers, method)
         % High-level http-request encapsulating a 'struct' body into form-encoded parameters.
             %
             % INPUT:
@@ -164,6 +164,7 @@ classdef HttpSession < handle
             %   - method:   (optional) default: GET if `body` is empty, POST otherwise.
             % OUTPUT:
             %   - response: matlab.net.http.ResponseMessage
+            %   - history: matlab.net.http.LogRecord
             % NOTES:
             %   - A struct-body (or QueryParameter s) are posted as urlencoded-form-params.
             %   - On HTTP-error, retrieve the original response using this 
@@ -194,7 +195,7 @@ classdef HttpSession < handle
             end
             
             request = matlab.net.http.RequestMessage(method, headers, body);
-            response = obj.sendRequest(uri, request);
+            [response, history] = obj.sendRequest(uri, request);
             
             if response.StatusCode ~= matlab.net.http.StatusCode.OK
                 DatumError(response, ...

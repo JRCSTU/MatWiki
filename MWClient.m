@@ -10,7 +10,7 @@ classdef MWClient < handle
     %       AR005: [1×1 struct]
     %       AR006: [1×1 struct]
     %   
-    %   >> disp(mw.lastResponse)
+    %   >> disp(mw.History)
     %     ResponseMessage with properties:
     %   
     %       StatusLine: 'HTTP/1.1 200 OK'
@@ -29,12 +29,68 @@ classdef MWClient < handle
         WikiUrl   
         % A struct with class-wide params to send on every API call.
         DefaultParams  = struct('format', 'json', 'formatversion', 2, 'errorformat', 'plaintext');
-        % Stored here for debug.
-        lastResponse
+        % matlab.net.http.LogRecord: for DEBUGGING, the http-conversation
+        % for the last high-level method called.
+        History
     end
     
     properties (Dependent)
       Cookies
+    end
+    
+    methods (Access=protected)
+        function appendHistory(obj, hist)
+            obj.History = [obj.History hist];
+        end
+        
+        
+        function token = newTokenImpl(obj, type)
+            % Asks a new token from MWiki API.
+            %
+            % INPUT:
+            %   type:   csrf | watch | patrol | rollback | userrights | login
+            % OUTPUT:
+            %   token:  str
+            % TODO:
+            %   - Cache tokens.
+            
+            apirams = obj.DefaultParams;
+            apirams.format = 'json';
+            apirams.action = 'query';
+            apirams.meta = 'tokens';
+            apirams.type = type;
+
+            response = obj.callApi(apirams);
+            token = response.Body.Data.query.tokens.([type 'token']);
+        end
+        
+            
+        function loginImpl(obj, user, pswd)
+            % Authenticates session with the specified credentials.
+            %
+            % INPUT:
+            %   user/pswd:    string
+            
+            narginchk(3, 3);
+            
+            apirams = obj.DefaultParams;
+            apirams.lgtoken = obj.newTokenImpl('login');
+            
+            apirams.action = 'login';
+            apirams.lgdomain = ''; 
+            apirams.lgname = user;
+            apirams.lgpassword = pswd; 
+            
+            response = obj.callApi(apirams);
+            login = response.Body.Data.login;
+            
+            if ~strcmp(login.result, 'Success')
+                DatumError(response, 'MWClient:loginDenied', ...
+                    '%s: cannot login due to: %s, %s', ...
+                    string(obj.WikiUrl), login.result, jsonencode(login.reason)).throw();
+            end
+        end
+        
     end
     
     methods
@@ -113,8 +169,9 @@ classdef MWClient < handle
             narginchk(1, 4);
             
             uri = obj.WikiUrl;
-            response = obj.Session.send(uri, varargin{:});
-            obj.lastResponse = response;
+            [response, history] = obj.Session.send(uri, varargin{:});
+            obj.appendHistory(history);
+            
             result = response.Body.Data;
             apiErr = response.Header.getFields("MediaWiki-API-Error");
             if isfield(result, 'error')
@@ -138,6 +195,8 @@ classdef MWClient < handle
             %   type:   (optional) csrf(default) | watch | patrol | rollback | userrights | login
             % OUTPUT:
             %   token:  str
+            % NOTES:
+            %   - Caches tokens.
             
             if nargin < 2 || isempty(type) || ~any(strcmp({'watch', 'patrol', 'rollback', 'userrights', 'login'}, type))
                 % The 'csrf' (cross-site request forgery) token introduced in 1.24 replaces
@@ -145,14 +204,8 @@ classdef MWClient < handle
                 type = 'csrf'; 
             end 
             
-            apirams = obj.DefaultParams;
-            apirams.format = 'json';
-            apirams.action = 'query';
-            apirams.meta = 'tokens';
-            apirams.type = type;
-
-            response = obj.callApi(apirams);
-            token = response.Body.Data.query.tokens.([type 'token']);
+            obj.History = [];
+            token = obj.newTokenImpl(type);
         end
         
             
@@ -161,25 +214,11 @@ classdef MWClient < handle
             %
             % INPUT:
             %   user/pswd:    string
+            % OUTPUT:
+            %   obj: myself, for chained invocations.
             
-            narginchk(3, 3);
-            
-            apirams = obj.DefaultParams;
-            apirams.lgtoken = obj.newToken('login');
-            
-            apirams.action = 'login';
-            apirams.lgdomain = ''; 
-            apirams.lgname = user;
-            apirams.lgpassword = pswd; 
-            
-            response = obj.callApi(apirams);
-            login = response.Body.Data.login;
-            
-            if ~strcmp(login.result, 'Success')
-                DatumError(response, 'MWClient:loginDenied', ...
-                    '%s: cannot login due to: %s, %s', ...
-                    string(obj.WikiUrl), login.result, jsonencode(login.reason)).throw();
-            end
+            obj.History = [];
+            loginImpl(obj, user, pswd);
         end
         
         
@@ -227,6 +266,7 @@ classdef MWClient < handle
             apirams.parameters = join_cellstr(parameters, '|', 'parameters');
             %apirams.callApi_version = '3';  % results as json-list on smw-v3.+
             
+            obj.History = [];
             response = obj.callApi(apirams);
             
             results = response.Body.Data.query.results;
