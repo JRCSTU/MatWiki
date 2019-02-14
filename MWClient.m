@@ -174,16 +174,18 @@ classdef MWClient < handle
             
             result = response.Body.Data;
             apiErr = response.Header.getFields("MediaWiki-API-Error");
-            if isfield(result, 'error')
+            
+            if isfield(result, 'errors')
+                % If req-param `formatversion!=2` this prop becomes singular: 'error'!
                 DatumError(response, 'MWClient:gotError', ...
                     '%s: MediaWiki-API-Error: %s\n\n%s', ...
-                    uri, result.error.code, result.error.info).throw();
+                    uri, strjoin({result.errors.code}, ', '), jsonencode(result.errors)).throw();
             elseif ~isempty(apiErr)
                 DatumError(response, 'MWClient:APIError', ...
                     '%s: %s\n\n%s', uri, apiErr, response.Body.Data).throw();
             elseif isstring(result) && contains(result, '<title>MediaWiki API help')
                 DatumError(response, 'MWClient:gotHelpPage', ...
-                    '%s: returned just the help-page! (no `action` given?)', uri).throw();
+                    '%s: returned just the help-page! (no `action` param given?)', uri).throw();
             end
         end
 
