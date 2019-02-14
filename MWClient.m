@@ -11,14 +11,16 @@ classdef MWClient < handle
     %       AR006: [1×1 struct]
     %   
     %   >> disp(mw.History)
-    %     ResponseMessage with properties:
+    %     LogRecord with properties:
     %   
-    %       StatusLine: 'HTTP/1.1 200 OK'
-    %       StatusCode: OK
-    %           Header: [1×9 matlab.net.http.HeaderField]
-    %             Body: [1×1 matlab.net.http.MessageBody]
-    %        Completed: 0
-    %   
+    %                URI: [1×1 matlab.net.URI]
+    %            Request: [1×1 matlab.net.http.RequestMessage]
+    %        RequestTime: [14-Feb-2019 18:32:22    14-Feb-2019 18:32:23]
+    %           Response: [1×1 matlab.net.http.ResponseMessage]
+    %       ResponseTime: [14-Feb-2019 18:32:23    14-Feb-2019 18:32:23]
+    %        Disposition: Done
+    %          Exception: [0×0 MException]
+    %  
     % 
     % Author: ankostis@gmail.com
 
