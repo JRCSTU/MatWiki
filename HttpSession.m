@@ -23,6 +23,34 @@ classdef HttpSession < handle
     end
 
     methods
+        function cookies = getCookiesFor(obj, uri)
+        % Fetches stored cookies for some URL.
+        %
+        % INPUT
+        %   uri: matlab.net.URI
+        % OUTPUT
+        %   cookies: struct.(Name|Value) | []
+        
+            cookies = [];
+            host = string(uri.Host);
+            if obj.Infos.isKey(host)
+                cookies = obj.Infos(host).cookies;
+            end
+        end
+        
+        
+        function setCookiesFor(obj, uri, cookies)
+        % Replaces all the cookies for some URL.
+        %
+        % INPUT
+        %   uri:     matlab.net.URI
+        %   cookies: struct.(Name|Value) | []
+        
+            host = string(uri.Host);
+            obj.Infos(host) = cookies;
+        end
+        
+        
         function response = sendRequest(obj, uri, request)
         % Low-level HTTP request with redirection and authentication cookies (session).
         %   uri: matlab.net.URI

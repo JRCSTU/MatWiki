@@ -10,9 +10,18 @@ classdef MWikiClient < handle
 % Author: ankostis
 
     properties
-        Session  % HttpSession
-        WikiUrl   % matlab.net.URI
+        % HttpSession
+        Session  
+        % matlab.net.URI
+        WikiUrl   
+        % A struct with params to send on every API call.
+        DefaultParams  = struct('format', 'json');  %, 'formatversion', 2, 'errorformat', 'plaintext');
     end
+    
+    properties (Dependent)
+      Cookies
+    end
+    
     methods
         function obj = MWikiClient(wikiUrl)
         % Initiates internally a new session.
@@ -35,6 +44,29 @@ classdef MWikiClient < handle
         % Forgets old session and initiates a new one;  must call `login()` afterwards.
         
             obj.Session = HttpSession;
+        end
+        
+        
+        function cookies = get.Cookies(obj)
+        % Fetches stored cookies from the session.
+        %
+        % INPUT
+        %   uri:     matlab.net.URI
+        % OUTPUT
+        %   cookies: struct.(Name|Value) | []
+        
+            cookies = obj.Session.getCookiesFor(obj.WikiUrl);
+        end
+        
+        
+        function set.Cookies(obj, cookies)
+        % Replaces all the cookies of the session.
+        %
+        % INPUT
+        %   uri:     matlab.net.URI
+        %   cookies: struct.(Name|Value) | []
+        
+            obj.Session.setCookiesFor(obj.WikiUrl, cookies);
         end
         
         
@@ -164,7 +196,7 @@ classdef MWikiClient < handle
             if ~exist('parameters', 'var') || isempty(parameters)
                 parameters = '';
             end
-
+            
             params.format = 'json';
             params.action = 'askargs';
             params.conditions = join_cellstr(conditions, '|', 'conditions');
