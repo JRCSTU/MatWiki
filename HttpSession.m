@@ -6,7 +6,8 @@ classdef HttpSession < handle
     % p.action = 'query';
     %   s.send('https://www.mediawiki.org/w/api.php', 'hello!');
     % NOTES:
-    %   - NEED Matlab >= R2018b due to unsupported ContentTypeField("application/x-www-form-urlencoded")!
+    %   - NEED Matlab 9.4 (R2018a) or higher for "application/x-www-form-urlencoded" HTTP support.
+	%   - Based on https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
 
     properties
         % matlab.net.http.HTTPOptions persists across requests to reuse  previous
@@ -23,10 +24,15 @@ classdef HttpSession < handle
 
     methods
         function obj = HttpSession(varargin)
-        % SYNTAX:
-        %   obj = HttpSession()
-        %   obj = HttpSession(options)
-        
+            % SYNTAX:
+            %   obj = HttpSession()
+            %   obj = HttpSession(options)
+            
+            if verLessThan('matlab', '9.4')
+                error('Matlab 9.4 (R2018a) or higher required for "application/x-www-form-urlencoded" HTTP support.');
+            end
+
+
             p = inputParser;
             p.addOptional('options', ...
                 matlab.net.http.HTTPOptions('ConnectTimeout',20), ...
@@ -41,12 +47,12 @@ classdef HttpSession < handle
         
         
         function cookies = getCookiesFor(obj, uri)
-        % Fetches stored cookies for some URL.
-        %
-        % INPUT
-        %   uri: matlab.net.URI
-        % OUTPUT
-        %   cookies: struct.(Name|Value) | []
+            % Fetches stored cookies for some URL.
+            %
+            % INPUT:
+            %   uri: matlab.net.URI
+            % OUTPUT:
+            %   cookies: struct.(Name|Value) | []
         
             cookies = [];
             host = string(uri.Host);
@@ -57,25 +63,28 @@ classdef HttpSession < handle
         
         
         function setCookiesFor(obj, uri, cookies)
-        % Replaces all the cookies for some URL.
-        %
-        % INPUT
-        %   uri:     matlab.net.URI
-        %   cookies: struct.(Name|Value) | []
+            % Replaces all the cookies for some URL.
+            %
+            % INPUT
+            %   uri:     matlab.net.URI
+            %   cookies: struct.(Name|Value) | []
         
             host = string(uri.Host);
             obj.Infos(host) = cookies;
         end
         
         
-        function response = sendRequest(obj, uri, request)
-        % Low-level HTTP request with redirection and authentication cookies (session).
-        %
-        %   - uri: matlab.net.URI
-        %   - request: matlab.net.http.RequestMessage
-        %   - response: matlab.net.http.ResponseMessage
-        % NOTES:
-        %   Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
+        function [response, history] = sendRequest(obj, uri, request)
+            % Low-level matlab.net HTTP requests with redirection and auth-cookies (session).
+            %
+            % INPUT:
+            %   - uri: matlab.net.URI
+            %   - request: matlab.net.http.RequestMessage
+            % OUTPUT:
+            %   - response: matlab.net.http.ResponseMessage
+            %   - history: matlab.net.http.ResponseMessage
+            % NOTES:
+            %   - Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
         
             host = string(uri.Host); % get Host from URI
             try
@@ -147,19 +156,20 @@ classdef HttpSession < handle
 
         function response = send(obj, uri, body, headers, method)
         % High-level http-request encapsulating a 'struct' body into form-encoded parameters.
-        %
-        % INPUT
-        %   - uri:      string | matlab.net.URI
-        %   - body:     {optional) string | struct | matlab.net.(QueryParameter | http.MessageBody)
-        %   - headers:  (optional) matlab.net.http.HeaderField | [] | {}
-        %   - method:   (optional) default: GET if `body` is empty, POST otherwise.
-        % OUTPUT
-        %   - response: matlab.net.http.ResponseMessage
-        % NOTES
-        %   - A struct-body (or QueryParameter s) are posted as urlencoded-form-params.
-        %   - On HTTP-error, retrieve the original response using this on the command-line::
-        %
-        %       MException.last.Datum
+            %
+            % INPUT:
+            %   - uri:      string | matlab.net.URI
+            %   - body:     (optional) string | struct | matlab.net.(QueryParameter | http.MessageBody)
+            %   - headers:  (optional) matlab.net.http.HeaderField | [] | {}
+            %   - method:   (optional) default: GET if `body` is empty, POST otherwise.
+            % OUTPUT:
+            %   - response: matlab.net.http.ResponseMessage
+            % NOTES:
+            %   - A struct-body (or QueryParameter s) are posted as urlencoded-form-params.
+            %   - On HTTP-error, retrieve the original response using this 
+            %     on the command-line::
+            %
+            %       MException.last.Datum
 
             if ~exist('body', 'var') || isempty(body)
                 body = [];
@@ -180,8 +190,6 @@ classdef HttpSession < handle
             end
             
             if isstruct(body)
-                ctf = matlab.net.http.field.ContentTypeField("application/x-www-form-urlencoded");
-                headers = [ctf, headers];
                 body = matlab.net.QueryParameter(body);
             end
             
