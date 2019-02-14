@@ -1,9 +1,9 @@
-classdef MWikiClient < handle
+classdef MWClient < handle
 % Mimic https://github.com/mwclient/mwclient/blob/master/mwclient/client.py
 %
 %
 % EXAMPLE:
-%   mw = MWikiClient('https://www.mediawiki.org/w/api.php');
+%   mw = MWClient('https://www.mediawiki.org/w/api.php');
 %   mw.login('botname', 'BOTPaSSwOrd');
 %   mw.ask(...);
 %
@@ -23,7 +23,7 @@ classdef MWikiClient < handle
     end
     
     methods
-        function obj = MWikiClient(wikiUrl, defaultApiParams)
+        function obj = MWClient(wikiUrl, defaultApiParams)
         % Initiates internally a new session.
         %
         % INPUT
@@ -102,14 +102,14 @@ classdef MWikiClient < handle
             result = response.Body.Data;
             apiErr = response.Header.getFields("MediaWiki-API-Error");
             if isfield(result, 'error')
-                DatumError(response, 'MWikiClient:gotError', ...
+                DatumError(response, 'MWClient:gotError', ...
                     '%s: MediaWiki-API-Error: %s\n\n%s', ...
                     uri, result.error.code, result.error.info).throw();
             elseif ~isempty(apiErr)
-                DatumError(response, 'MWikiClient:APIError', ...
+                DatumError(response, 'MWClient:APIError', ...
                     '%s: %s\n\n%s', uri, apiErr, response.Body.Data).throw();
             elseif ischar(result) && contains(result, '<title>MediaWiki API help')
-                DatumError(response, 'MWikiClient:gotHelpPage', ...
+                DatumError(response, 'MWClient:gotHelpPage', ...
                     '%s: returned just the help-page! (no `action` given?)', uri).throw();
             end
         end
@@ -159,7 +159,7 @@ classdef MWikiClient < handle
             login = response.Body.Data.login;
             
             if ~strcmp(login.result, 'Success')
-                DatumError(response, 'MWikiClient:loginDenied', ...
+                DatumError(response, 'MWClient:loginDenied', ...
                     '%s: cannot login due to: %s, %s', ...
                     string(obj.WikiUrl), login.result, login.reason).throw();
             end
