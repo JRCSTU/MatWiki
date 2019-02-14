@@ -3,11 +3,24 @@ classdef MWClient < handle
 %
 %
 % EXAMPLE:
-%   mw = MWClient('https://www.mediawiki.org/w/api.php');
-%   mw.login('botname', 'BOTPaSSwOrd');
-%   mw.ask(...);
-%
-% Author: ankostis
+%   >> mw = MWClient(url).login('Ankostis@test','qu8hqc8f07se3ra05ufcn89keecpmgtk');
+%   >> results = mw.askargs('Category:Cars', 'Vehicle OEM', 'limit=3');
+%   >> disp(results)
+%       AR004: [1×1 struct]
+%       AR005: [1×1 struct]
+%       AR006: [1×1 struct]
+%   
+%   >> disp(mw.lastResponse)
+%     ResponseMessage with properties:
+%   
+%       StatusLine: 'HTTP/1.1 200 OK'
+%       StatusCode: OK
+%           Header: [1×9 matlab.net.http.HeaderField]
+%             Body: [1×1 matlab.net.http.MessageBody]
+%        Completed: 0
+%   
+% 
+% Author: ankostis@gmail.com
 
     properties
         % HttpSession
