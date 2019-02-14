@@ -7,7 +7,6 @@ classdef HttpSession < handle
     %   s.send('https://www.mediawiki.org/w/api.php', 'hello!');
     % NOTES:
     %   - NEED Matlab >= R2018b due to unsupported ContentTypeField("application/x-www-form-urlencoded")!
-    %   - Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
 
     properties
         % matlab.net.http.HTTPOptions persists across requests to reuse  previous
@@ -71,9 +70,12 @@ classdef HttpSession < handle
         
         function response = sendRequest(obj, uri, request)
         % Low-level HTTP request with redirection and authentication cookies (session).
-        %   uri: matlab.net.URI
-        %   request: matlab.net.http.RequestMessage
-        %   response: matlab.net.http.ResponseMessage
+        %
+        %   - uri: matlab.net.URI
+        %   - request: matlab.net.http.RequestMessage
+        %   - response: matlab.net.http.ResponseMessage
+        % NOTES:
+        %   Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
         
             host = string(uri.Host); % get Host from URI
             try

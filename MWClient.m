@@ -15,7 +15,9 @@ classdef MWClient < handle
         % matlab.net.URI
         WikiUrl   
         % A struct with class-wide params to send on every API call.
-        DefaultParams  = struct('format', 'json');  %, 'formatversion', 2, 'errorformat', 'plaintext');
+        DefaultParams  = struct('format', 'json', 'formatversion', 2, 'errorformat', 'plaintext');
+        
+        lastResponse
     end
     
     properties (Dependent)
@@ -99,6 +101,7 @@ classdef MWClient < handle
             
             uri = obj.WikiUrl;
             response = obj.Session.send(uri, varargin{:});
+            obj.lastResponse = response;
             result = response.Body.Data;
             apiErr = response.Header.getFields("MediaWiki-API-Error");
             if isfield(result, 'error')
@@ -108,7 +111,7 @@ classdef MWClient < handle
             elseif ~isempty(apiErr)
                 DatumError(response, 'MWClient:APIError', ...
                     '%s: %s\n\n%s', uri, apiErr, response.Body.Data).throw();
-            elseif ischar(result) && contains(result, '<title>MediaWiki API help')
+            elseif isstring(result) && contains(result, '<title>MediaWiki API help')
                 DatumError(response, 'MWClient:gotHelpPage', ...
                     '%s: returned just the help-page! (no `action` given?)', uri).throw();
             end
@@ -162,7 +165,7 @@ classdef MWClient < handle
             if ~strcmp(login.result, 'Success')
                 DatumError(response, 'MWClient:loginDenied', ...
                     '%s: cannot login due to: %s, %s', ...
-                    string(obj.WikiUrl), login.result, login.reason).throw();
+                    string(obj.WikiUrl), login.result, jsonencode(login.reason)).throw();
             end
         end
         
