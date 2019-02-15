@@ -227,6 +227,8 @@ classdef MWClient < handle
             % OUTPUT:
             %   obj: myself, for chained invocations.
             
+            % Delete any auth-cookie, or 'api-login-fail-badsessionprovider' error.
+            obj.Cookies = [];
             obj.History = [];
             loginImpl(obj, user, pswd);
         end
