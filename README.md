@@ -10,12 +10,13 @@
 A ([semantic](https://semantic-mediawiki.org)) [MediaWiki](https://www.mediawiki.org) client for [Matlab](https://www.mathworks.com/products/matlab.html).
 
 ## Status
-As of Feb 2019, it is in a very early stage, just 2 days of work:
+As of Feb 2019, it is in a very early stage, just 3 days of work:
 - allow bots to login;
 - run `#ask` semantic-queries.
 
 ## Notes:
-- REQUIRES `Matlab-9.4+` (**R2018a** or higher), for `application/x-www-form-urlencoded` HTTP support.
+- Not tested for `Matlab-9.4+` (**R2018a** or higher), where HTTP support 
+  for `application/x-www-form-urlencoded` were not fully there yet.
 - Implemented against `MediaWiki-1.31`.
 - Very rudimentary error-handling.
 - Http-session handling based on the ["official" sample code](https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html).

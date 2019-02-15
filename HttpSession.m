@@ -11,7 +11,8 @@ classdef HttpSession < handle
     % p.action = 'query';
     %   s.send('https://www.mediawiki.org/w/api.php', 'hello!');
     % NOTES:
-    %   - NEED Matlab 9.4 (R2018a) or higher for "application/x-www-form-urlencoded" HTTP support.
+    %   - WARN: UNTESTED Matlab < 9.4 (< R2018a) urlencoded parameters in the POST's body,
+    %     where HTTP support for "application/x-www-form-urlencoded" in non excistent!
 	%   - Based on https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
 
     properties
@@ -33,11 +34,6 @@ classdef HttpSession < handle
             %   obj = HttpSession()
             %   obj = HttpSession(options)
             
-            if verLessThan('matlab', '9.4')
-                error('Matlab 9.4 (R2018a) or higher required for "application/x-www-form-urlencoded" HTTP support.');
-            end
-
-
             p = inputParser;
             p.addOptional('options', ...
                 matlab.net.http.HTTPOptions('ConnectTimeout',20), ...
@@ -197,6 +193,22 @@ classdef HttpSession < handle
             
             if isstruct(body)
                 body = matlab.net.QueryParameter(body);
+            end
+            if isa(body, 'matlab.net.QueryParameter') && verLessThan('matlab', '9.4')
+                % TODO: UNTESTED CODE in earlier MATLAB versions.
+                %
+                % In older MATLABs, passing a QueryParameter body did not trigger 
+                % payload to be populated as "x-www-form-urlencoded", bc this media-type
+                % were not properly registered yet - "application/json" were used instead.
+                %
+                % So we set body's payload and ContentType explicitly.
+                
+                % No UTF8 needed since urlencoded.
+                bodyBytes = unicode2native(string(body), 'ASCII');
+                body = matlab.net.http.MessageBody();
+                body.Payload = bodyBytes;
+                ctf = matlab.net.http.field.ContentTypeField("application/x-www-form-urlencoded");
+                headers = [ctf, headers];
             end
             
             request = matlab.net.http.RequestMessage(method, headers, body);
