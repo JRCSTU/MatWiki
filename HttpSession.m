@@ -6,12 +6,13 @@
 classdef HttpSession < handle
     % EXAMPLES:
     %   s = HttpSession();
-    % p.action = 'query';
-    % p.action = 'query';
-    % p.action = 'query';
-    %   s.send('https://www.mediawiki.org/w/api.php', 'hello!');
+    %   url = 'https://www.mediawiki.org/w/api.php';
+    %   p.action = 'query';
+    %   p.prop = 'info';
+    %   p.titles = 'Main Page';
+    %   s.send(url, p);
     % NOTES:
-    %   - WARN: UNTESTED Matlab < 9.4 (< R2018a) urlencoded parameters in the POST's body,
+    %   - WARN: UNTESTED Matlab < 9.4 (< R2018a) with urlencoded parameters in the POST's body,
     %     where HTTP support for "application/x-www-form-urlencoded" in non excistent!
 	%   - Based on https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
 
@@ -33,7 +34,11 @@ classdef HttpSession < handle
             % SYNTAX:
             %   obj = HttpSession()
             %   obj = HttpSession(options)
-            
+
+            if verLessThan('matlab', '9.1')
+                error('Matlab 9.1 (R2016b) or higher required for HTTP support with cookies.');
+            end
+
             p = inputParser;
             p.addOptional('options', ...
                 matlab.net.http.HTTPOptions('ConnectTimeout',20), ...
@@ -76,7 +81,7 @@ classdef HttpSession < handle
         
         
         function [response, history] = sendRequest(obj, uri, request)
-            % Low-level matlab.net HTTP requests with redirection and auth-cookies (session).
+            % Low-level matlab.net.HTTP request with permanent-redirection and cookies-store (session).
             %
             % INPUT:
             %   - uri: matlab.net.URI
@@ -87,13 +92,13 @@ classdef HttpSession < handle
             % NOTES:
             %   - Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
         
-            host = string(uri.Host); % get Host from URI
+            host = string(uri.Host);
             try
                 % get info struct for host in map
                 info = obj.Infos(host);
                 if ~isempty(info.uri)
-                    % If it has a uri field, it means a redirect previously
-                    % took place, so replace requested URI with redirect URI.
+                    % If it has a uri field, it means redirected previously,
+                    % so replace requested URI with redirected one.
                     uri = info.uri;
                 end
                 if ~isempty(info.cookies)
@@ -195,7 +200,7 @@ classdef HttpSession < handle
                 body = matlab.net.QueryParameter(body);
             end
             if isa(body, 'matlab.net.QueryParameter') && verLessThan('matlab', '9.4')
-                % TODO: UNTESTED CODE in earlier MATLAB versions.
+                % TODO: UNTESTED CODE in MATLAB versions < R2017a.
                 %
                 % In older MATLABs, passing a QueryParameter body did not trigger 
                 % payload to be populated as "x-www-form-urlencoded", bc this media-type

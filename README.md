@@ -15,6 +15,8 @@ As of Feb 2019, it is in a very early stage, just 3 days of work:
 - run `#ask` semantic-queries.
 
 ## Notes:
+- REQUIRES `Matlab-9.1+` (**R2016b** or higher), for string-vectors & proper HTTP support 
+  (e.g. for cookies: https://www.mathworks.com/help/matlab/ref/matlab.net.http.cookieinfo-class.html).
 - Not tested for `Matlab-9.4+` (**R2018a** or higher), where HTTP support 
   for `application/x-www-form-urlencoded` were not fully there yet.
 - Implemented against `MediaWiki-1.31`.
