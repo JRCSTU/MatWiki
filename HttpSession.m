@@ -39,15 +39,15 @@ classdef HttpSession < handle
                 error('Matlab 9.1 (R2016b) or higher required for HTTP support with cookies.');
             end
 
-            p = inputParser;
-            p.addOptional('options', ...
-                matlab.net.http.HTTPOptions('ConnectTimeout',20), ...
-                @(x) isa(x, 'matlab.net.http.HTTPOptions'));
+            persistent p
+            if isempty(p)
+                p = inputParser;
+                p.addOptional('options', ...
+                    matlab.net.http.HTTPOptions('ConnectTimeout',20), ...
+                    @(x) isa(x, 'matlab.net.http.HTTPOptions'));
+            end
             p.parse(varargin{:});
-            
             obj.Options = p.Results.options;
-
-            obj.Options = matlab.net.http.HTTPOptions('ConnectTimeout',20);
             obj.Infos = containers.Map;
         end
         
