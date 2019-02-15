@@ -26,12 +26,16 @@ classdef MWClient < handle
     %        Disposition: Done
     %          Exception: [0×0 MException]
     %  
-	% REQUIRES:
+    % REQUIRES:
     %   `Matlab-9.1+` (**R2016b** or higher), for string-vectors & proper HTTP support 
     %   (e.g. for cookies: https://www.mathworks.com/help/matlab/ref/matlab.net.http.cookieinfo-class.html).
     % 
     % Author: ankostis@gmail.com
 
+    properties (Constant)
+        Version = '0.1.0'  % SYNC it with README.md & CHANGES.md.
+    end
+    
     properties
         % HttpSession
         Session  
