@@ -34,7 +34,9 @@ classdef MWClient < handle
         Session  
         % matlab.net.URI
         WikiUrl   
-        % A struct with class-wide params to send on every API call.
+        % A struct with class-wide params to include on every API call.
+        % Note: does not need re-assigning after value changes (as structs do), 
+        % but preffer to better
         DefaultParams  = struct('format', 'json', 'formatversion', 2, 'errorformat', 'plaintext');
         % matlab.net.http.LogRecord: for DEBUGGING, the http-conversation
         % for the last high-level method called.
@@ -101,12 +103,13 @@ classdef MWClient < handle
     end
     
     methods
-        function obj = MWClient(wikiUrl, defaultApiParams)
+        function obj = MWClient(wikiUrl, session, defaultApiParams)
             % Initiates internally a new session.
             %
             % INPUT:
             %   wikiUrl:    string | matlab.net.URI
-            %   defaultApiParams:  struct | []
+            %   session:    (optional) HttpSession | []
+            %   defaultApiParams:  (optional) struct | []
             %       overrides for the new instance only
 
             narginchk(1, 2);
@@ -119,16 +122,12 @@ classdef MWClient < handle
             if exist('defaultApiParams', 'var')
                 obj.DefaultParams = defaultApiParams;
             end
-            obj.newSession();
+            if ~exist('session', 'var') || isempty(session)
+                session = HttpSession();
+            end
+            obj.Session = session;
         end
 
-        
-        function newSession(obj)
-        % Forgets old session and initiates a new one;  must call `login()` afterwards.
-        
-            obj.Session = HttpSession();
-        end
-        
         
         function cookies = get.Cookies(obj)
             % Fetches stored cookies from the session.
@@ -143,7 +142,7 @@ classdef MWClient < handle
         
         
         function set.Cookies(obj, cookies)
-            % Replaces all the cookies of the session.
+            % Replaces all the cookies of the session; set [] to clear them.
             %
             % INPUT
             %   uri:     matlab.net.URI
@@ -168,6 +167,8 @@ classdef MWClient < handle
             %   - DatumEx: the Datum contains the original response.
             %   - Other http-errors.
             % NOTES:
+            %   - The http-conversation is appended in `History`, for debugging; clear it 
+            %     before a high-level operation.
             %   - A struct-body (or QueryParameter s) are posted as urlencoded-form-params.
             %   - On error, retrieve the response using this on the command-line::
             %
