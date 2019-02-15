@@ -1,28 +1,33 @@
-| project   | MatMWClient: A (semantic) MediaWiki client for Matlab.  |
-|-----------|---------------------------------------------------------|
-| release   | 0.0.0                                                   |
-| rel_date  | 14 Feb 2019                                             |
-| home      | https://github.com/JRCSTU/matmwclient                 |
-| maintainer| Kostis Anagnostopoulos (ankostis@gmail.com)             |
-| license   | [EUPL 1.2](https://joinup.ec.europa.eu/collection/eupl) |
-| copyright | [2019 European Commission](https://ec.europa.eu/jrc/)   |
+| project    | MatMWClient: A (semantic) MediaWiki client for Matlab.  |
+|------------|---------------------------------------------------------|
+| release    | 0.1.0                                                   |
+| rel_date   | 15 Feb 2019                                             |
+| home       | https://github.com/JRCSTU/matmwclient                   |
+| maintainer | Kostis Anagnostopoulos (ankostis@gmail.com)             |
+| license    | [EUPL 1.2](https://joinup.ec.europa.eu/collection/eupl) |
+| copyright  | [2019 European Commission](https://ec.europa.eu/jrc/)   |
 
-A ([semantic](https://semantic-mediawiki.org)) [MediaWiki](https://www.mediawiki.org) client for [Matlab](https://www.mathworks.com/products/matlab.html).
+A ([semantic](https://semantic-mediawiki.org)) [MediaWiki](https://www.mediawiki.org) 
+client for [Matlab](https://www.mathworks.com/products/matlab.html).
 
 ## Status
-As of Feb 2019, it is in a very early stage, just 3 days of work:
-- allow bots to login;
-- run `#ask` semantic-queries.
-
-## Notes:
-- REQUIRES `Matlab-9.1+` (**R2016b** or higher), for string-vectors & proper HTTP support 
+As of Feb 2019, it is in a very early stage, just ~4 days of work:
+- REQUIRES _MATLAB_ >= **R2016b**(9.1.x) for string-vectors & proper HTTP support.
   (e.g. for cookies: https://www.mathworks.com/help/matlab/ref/matlab.net.http.cookieinfo-class.html).
+- Features:
+  - Allow bots to login.
+  - run `#ask` semantic-queries.
+  - Rudimentary error-handling.
 - Not tested for `Matlab-9.4+` (**R2018a** or higher), where HTTP support 
   for `application/x-www-form-urlencoded` were not fully there yet.
-- Implemented against `MediaWiki-1.31`.
-- Very rudimentary error-handling.
-- Http-session handling based on the ["official" sample code](https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html).
-- Design influenced by the [_python_ client library](https://github.com/mwclient/mwclient/blob/master/mwclient/client.py).
+- Lightly tested only against `MediaWiki-1.31`.
+- See also: [Changelog](./CHANGES.md)
+
+
+## Notes:
+- Http-session handling based on MATLAB's ["official" sample code](https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html).
+- Design slightly influenced by the [_python_ client library](https://github.com/mwclient/mwclient/blob/master/mwclient/client.py).
+
 
 ## Example code:
 - Place all the mat-files of this project somewhere in your MATLAB's _search-path_,
