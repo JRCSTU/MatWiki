@@ -37,9 +37,8 @@ classdef MWClient < handle
         Session  
         % matlab.net.URI
         WikiUrl   
-        % A struct with class-wide params to include on every API call.
-        % Note: does not need re-assigning after value changes (as structs do), 
-        % but preffer to better
+        % Class-wide struct with params always included in the uri by `callApi()`.
+        % Note: pass them on constructor instead of modifying thse ones, class-wide.
         DefaultParams  = struct('format', 'json', 'formatversion', 2, 'errorformat', 'plaintext');
         % matlab.net.http.LogRecord: for DEBUGGING, the http-conversation
         % for the last high-level method called.
@@ -66,8 +65,6 @@ classdef MWClient < handle
             % TODO:
             %   - Cache tokens.
             
-            apirams = obj.DefaultParams;
-            apirams.format = 'json';
             apirams.action = 'query';
             apirams.meta = 'tokens';
             apirams.type = type;
@@ -85,7 +82,6 @@ classdef MWClient < handle
             
             narginchk(3, 3);
             
-            apirams = obj.DefaultParams;
             apirams.lgtoken = obj.newTokenImpl('login');
             
             apirams.action = 'login';
@@ -180,6 +176,8 @@ classdef MWClient < handle
             narginchk(1, 4);
             
             uri = obj.WikiUrl;
+            uri.Query = [ uri.Query obj.DefaultParams ];
+
             [response, history] = obj.Session.send(uri, varargin{:});
             obj.appendHistory(history);
             
@@ -274,7 +272,6 @@ classdef MWClient < handle
                 parameters = '';
             end
             
-            apirams = obj.DefaultParams;
             apirams.action = 'askargs';
             apirams.conditions = join_cellstr(conditions, '|', 'conditions');
             apirams.printouts = join_cellstr(printouts, '|', 'printouts');
