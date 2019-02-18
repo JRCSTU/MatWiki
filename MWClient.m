@@ -1,16 +1,22 @@
-% Copyright 2019 European Commission (JRC);
-% Licensed under the EUPL (the 'Licence');
-% You may not use this work except in compliance with the Licence.
-% You may obtain a copy of the Licence at: http://ec.europa.eu/idabc/eupl
-
 classdef MWClient < handle
-    % Mimic https://github.com/mwclient/mwclient/blob/master/mwclient/client.py
+    % MWClient   A MediaWiki client-library.
+    % Implemented mostly for semantic searches.
+    %
+    % REQUIRES:
+    % MATLAB *R2016b*(9.1.x) or higher, for string-vectors & proper HTTP support 
+    % (e.g. for cookies: https://www.mathworks.com/help/matlab/ref/matlab.net.http.cookieinfo-class.html).
+    % 
+    % SEE ALSO:
+    % * [MediaWiki](https://www.mediawiki.org)
+    % * [MediaWiki](https://semantic-mediawiki.org Semantic)
+    % * [python's client library](https://github.com/mwclient/mwclient/blob/master/mwclient/client.py)
+    %   .
     %
     % EXAMPLE:
     %   >> url = 'http://some.wiki.org/wiki/api.php';
     %   >> mw = MWClient(url).login('Ankostis@test','qu8hqc8f07se3ra05ufcn89keecpmgtk');
     %   >> results = mw.askargs('Category:Cars', 'Vehicle OEM', 'limit=3');
-    %   >> disp(results)
+    %   >> disp(jsonencode(results))
     %       AR004: [1×1 struct]
     %       AR005: [1×1 struct]
     %       AR006: [1×1 struct]
@@ -26,27 +32,55 @@ classdef MWClient < handle
     %        Disposition: Done
     %          Exception: [0×0 MException]
     %  
-    % REQUIRES:
-    %   `Matlab-9.1+` (**R2016b** or higher), for string-vectors & proper HTTP support 
-    %   (e.g. for cookies: https://www.mathworks.com/help/matlab/ref/matlab.net.http.cookieinfo-class.html).
     % 
+    % Copyright 2019 European Commission (JRC);
+    % Licensed under the EUPL (the 'Licence');
+    % You may not use this work except in compliance with the Licence.
+    % You may obtain a copy of the Licence at: http://ec.europa.eu/idabc/eupl
     % Author: ankostis@gmail.com
+    % 
 
     properties (Constant)
-        Version = '0.1.0'  % SYNC it with README.md & CHANGES.md.
+        % * [Semantic versioning](https://semver.org/)
+        % * [PEP440 versioning](https://www.python.org/dev/peps/pep-0440/)
+        % * To DEVs: SYNC it with README.md & CHANGES.md.
+        Version = '1.0.0-dev0'
     end
     
     properties
-        % HttpSession
+        % HttpSession:
+        %   (nonempty) 
         Session  
-        % matlab.net.URI
-        WikiUrl   
-        % Class-wide struct with params always included in the uri by `callApi()`.
-        % Note: pass them on constructor instead of modifying thse ones, class-wide.
-        DefaultParams  = struct('format', 'json', 'formatversion', 2, 'errorformat', 'plaintext');
-        % matlab.net.http.LogRecord: for DEBUGGING, the http-conversation
-        % for the last high-level method called.
+
+        % matlab.net.URI:
+        %   (nonempty) 
+        ApiUri
+        
+        % matlab.net.http.HTTPOptions:
+        %   Class-wide defaults prepended to all HTTP-requests.
+        %   Preffer to selectively change them on constructor.
+        HOptions = matlab.net.http.HTTPOptions('Authenticate', false);  % Not used for mw-login.
+
+        % matlab.net.http.HeaderField:
+        %   HTTP-headers prepended to all HTTP-requests.
+        Headers
+
+        % matlab.net.HttpOption:
+        % Class-wide params always included in the uri by `callApi()`.
+        % * NOTE: pass them on constructor instead of modifying thse ones, class-wide.
+        % * WARN: changing any of (json, formatversion, errorformat) will invalidate 
+        %   the error-handling of responses in `callApi()`!
+        ApiArgs  = {'format', 'json', 'formatversion', 2, 'errorformat', 'plaintext'};
+
+        % matlab.net.http.LogRecord:
+        %   For DEBUGGING, the http-conversation for the last high-level method called.
+        %   NOTE that the request-bodies are not preserved in `History` (to preserve memory),
+        %   unless you set the 'SavePayload' HttpOption to `true`.
         History
+
+        % scalar(string) | char:
+        %   Stored to update UserAgent header, after login(). 
+        User
     end
     
     properties (Dependent)
@@ -54,6 +88,31 @@ classdef MWClient < handle
     end
     
     methods (Access=protected)
+        function kvpairs = parseArgs(obj, vcell)
+            % Accept kv-pairs overriding object-props on each `callApi()` or construction.
+            %
+            % INPUT:
+            %   vcell: from `varargin` containing the following kv-pairs.
+            % KV-PAIRS ACCEPTED:
+            %   Session, HOptions, Headers, ApiArgs
+            % RETURN:
+            % the struct from `inputPraser.Results`
+            %
+            % If empty-session given, instanciates a new one.
+            p = inputParser;
+            p.addParameter('Session', [], @(x) isempty(x) || isa(x, 'HttpSession'));
+            p.addParameter('HOptions', obj.HOptions, @HttpSession.makeHOptions);
+            p.addParameter('Headers', obj.Headers, @HttpSession.makeHeaders);
+            p.addParameter('ApiArgs', obj.ApiArgs, @HttpSession.makeQParams);
+            
+            p.parse(vcell{:});
+            kvpairs = p.Results;
+            if isempty(kvpairs.Session)
+                kvpairs.Session = HttpSession();
+            end
+        end
+        
+        
         function appendHistory(obj, hist)
             obj.History = [obj.History hist];
         end
@@ -63,17 +122,17 @@ classdef MWClient < handle
             % Asks a new token from MWiki API.
             %
             % INPUT:
-            %   type:   csrf | watch | patrol | rollback | userrights | login
+            %   type:   |csrf watch patrol rollback userrights login|
             % OUTPUT:
             %   token:  str
             % TODO:
-            %   - Cache tokens.
+            % * Cache tokens.
             
-            apirams.action = 'query';
-            apirams.meta = 'tokens';
-            apirams.type = type;
+            apiargs.action = 'query';
+            apiargs.meta = 'tokens';
+            apiargs.type = type;
 
-            response = obj.callApi(apirams);
+            response = obj.callApi([], [], apiargs);
             token = response.Body.Data.query.tokens.([type 'token']);
         end
         
@@ -86,51 +145,75 @@ classdef MWClient < handle
             
             narginchk(3, 3);
             
-            apirams.lgtoken = obj.newTokenImpl('login');
+            apiargs.lgtoken = obj.newTokenImpl('login');
+            apiargs.action = 'login';
+            apiargs.lgdomain = ''; 
+            apiargs.lgname = user;
+            apiargs.lgpassword = pswd; 
             
-            apirams.action = 'login';
-            apirams.lgdomain = ''; 
-            apirams.lgname = user;
-            apirams.lgpassword = pswd; 
-            
-            response = obj.callApi(apirams);
+            response = obj.callApi([], [], apiargs);
             login = response.Body.Data.login;
             
             if ~strcmp(login.result, 'Success')
                 DatumError(response, 'MWClient:loginDenied', ...
                     '%s: cannot login due to: %s, %s', ...
-                    string(obj.WikiUrl), login.result, jsonencode(login.reason)).throw();
+                    string(obj.ApiUri), login.result, jsonencode(login.reason)).throw();
             end
+            obj.User = user;
         end
         
     end
     
     methods
-        function obj = MWClient(wikiUrl, session, defaultApiParams)
-            % Initiates internally a new session.
+        function obj = MWClient(ApiUrl, varargin)
+            % Set defaults and initiates internally a new session (if none given).
             %
+            % SYNTAX:
+            %   obj = MWClient(apiUrl, [ kwarg1Name, kwarg1Value, ... ] )
             % INPUT:
-            %   wikiUrl:    string | matlab.net.URI
-            %   session:    (optional) HttpSession | []
-            %   defaultApiParams:  (optional) struct | []
-            %       overrides for the new instance only
-
-            narginchk(1, 2);
+            % * apiUrl:     |string , matlab.net.URI|
+            %   e.g.: |https://www.semantic-mediawiki.org/w/api.php|
+            % KWARGS:
+            % Override class-defaults:
+            %
+            % * Session:  	HttpSession
+            %               If empty, a new one is instanciated.
+            % * HOptions:  	matlab.net.http.HttpOptions | makeOptions(<any>)
+            % * Headers:  	matlab.net.http.HeaderField | makeHeaders(<any>)
+            % * ApiArgs:  	HttpSession.makeQParams(<any>)
             
-            if isa(wikiUrl, 'matlab.net.URI')
-                obj.WikiUrl = wikiUrl;
-            else
-                obj.WikiUrl = matlab.net.URI(wikiUrl);
-            end
-            if exist('defaultApiParams', 'var')
-                obj.DefaultParams = defaultApiParams;
-            end
-            if ~exist('session', 'var') || isempty(session)
-                session = HttpSession();
-            end
-            obj.Session = session;
+            kvpairs = obj.parseArgs(varargin);
+            obj.ApiUri = ApiUrl;
+            obj.Session = kvpairs.Session;
+            obj.HOptions = kvpairs.HOptions;
+            obj.Headers = kvpairs.Headers;
+            obj.ApiArgs = kvpairs.ApiArgs;
         end
 
+        
+        function set.ApiUri(obj, val)
+            obj.ApiUri = matlab.net.URI(val);
+            assert(~any(cellfun(@isempty, {obj.ApiUri.Host, obj.ApiUri.Scheme})), ...
+                'ApiUrl(%s) missing host or scheme!', obj.ApiUri);
+        end
+        function set.Session(obj, val)
+            if isempty(val)
+                val = HttpSession();
+            end
+            assert(isa(val, 'HttpSession') && ~isempty(val), ...
+                'Expected a non-empty `HttpSession`, got `%s`: %s!', class(val), val);
+            obj.Session = val;
+        end
+        function set.HOptions(obj, val)
+            obj.HOptions = HttpSession.makeHOptions(val);
+        end
+        function set.Headers(obj, val)
+            obj.Headers = HttpSession.makeHeaders(val);
+        end
+        function set.ApiArgs(obj, val)
+            obj.ApiArgs = HttpSession.makeQParams(val);
+        end
+        
         
         function cookies = get.Cookies(obj)
             % Fetches stored cookies from the session.
@@ -140,7 +223,7 @@ classdef MWClient < handle
             % OUTPUT:
             %   cookies: struct.(Name|Value) | []
         
-            cookies = obj.Session.getCookiesFor(obj.WikiUrl);
+            cookies = obj.Session.getCookiesFor(obj.ApiUri);
         end
         
         
@@ -151,38 +234,40 @@ classdef MWClient < handle
             %   uri:     matlab.net.URI
             %   cookies: struct.(Name|Value) | []
         
-            obj.Session.setCookiesFor(obj.WikiUrl, cookies);
+            obj.Session.setCookiesFor(obj.ApiUri, cookies);
         end
         
         
         function response = callApi(obj, varargin)
-            % Http-request with MW-error handling that preserves the response for examination.
+            % The HTTP-Gateway with MW-error handling, preserving the response for examination.
             %
             % SYNTAX:
-            %   response = api(obj, body, headers, method)
+            %   response = callApi(obj, method, headers, body, hoptions)
             % INPUT:
-            %   - body:     {optional) string | struct | matlab.net.(QueryParameter | http.MessageBody)
-            %   - headers:  (optional) matlab.net.http.HeaderField | [] | {}
-            %   - method:   (optional) default: GET if `body` is empty, POST otherwise.
+            % * method:   (optional) default: GET if `body` is empty, POST otherwise.
+            % * headers:  (optional) matlab.net.http.HeaderField | makeHeaders(<any>)
+            % * body:     (optional) matlab.net.http.MessageBody | makeQParams(<any>)
+            % * hoptions: (optional) matlab.net.http.HttpOptions | makeHOptions(<any>)
+            %       if empty, defaults to `obj.HOptions` - not HttpOptions () empty-costructor.
             % OUTPUT
-            %   - response: matlab.net.http.ResponseMessage
+            % * response: matlab.net.http.ResponseMessage
             % RAISE:
-            %   - DatumEx: the Datum contains the original response.
-            %   - Other http-errors.
+            % * DatumEx: the Datum contains the original response.
+            % * Other http-errors.
             % NOTES:
-            %   - The http-conversation is appended in `History`, for debugging; clear it 
-            %     before a high-level operation.
-            %   - A struct-body (or QueryParameter s) are posted as urlencoded-form-params.
-            %   - On error, retrieve the response using this on the command-line::
+            % * To DEVs: the http-conversation is appended in `History`, for debugging; 
+            %     clean it before each high-level operation.
+            % * A struct-body (or QueryParameter s) are posted as urlencoded-form-params.
+            % * On error, retrieve the response using this on the command-line::
             %
             %       MException.last.Datum
 
             narginchk(1, 4);
             
-            uri = obj.WikiUrl;
-            uri.Query = [ uri.Query obj.DefaultParams ];
+            uri = obj.ApiUri;
+            uri.Query = [ obj.ApiArgs uri.Query ];
 
-            [response, history] = obj.Session.send(uri, varargin{:});
+            [response, history] = obj.Session.sendParams(uri, varargin{:});
             obj.appendHistory(history);
             
             result = response.Body.Data;
@@ -197,8 +282,8 @@ classdef MWClient < handle
                 DatumError(response, 'MWClient:APIError', ...
                     '%s: %s\n\n%s', uri, apiErr, response.Body.Data).throw();
             elseif isstring(result) && contains(result, '<title>MediaWiki API help')
-                DatumError(response, 'MWClient:gotHelpPage', ...
-                    '%s: returned just the help-page! (no `action` param given?)', uri).throw();
+                DatumError(response, 'MWClient:gotApiHelpPage', ...
+                    '%s: returned just the API help-page! (no `action` param given?)', uri).throw();
             end
         end
 
@@ -211,7 +296,7 @@ classdef MWClient < handle
             % OUTPUT:
             %   token:  str
             % NOTES:
-            %   - Caches tokens.
+            % * Caches tokens.
             
             if nargin < 2 || isempty(type) || ~any(strcmp({'watch', 'patrol', 'rollback', 'userrights', 'login'}, type))
                 % The 'csrf' (cross-site request forgery) token introduced in 1.24 replaces
@@ -229,7 +314,7 @@ classdef MWClient < handle
             %
             % INPUT:
             %   user/pswd:    string
-            % OUTPUT:
+            %  OUTPUT:
             %   obj: myself, for chained invocations.
             
             % Delete any auth-cookie, or 'api-login-fail-badsessionprovider' error.
@@ -252,8 +337,8 @@ classdef MWClient < handle
             %   results: struct
             %       all results (valid query with zero results will not raise).
             % API docs: 
-            %   - https://semantic-mediawiki.org/wiki/Ask_API
-            %   - https://www.semantic-mediawiki.org/w/api.php?action=help&modules=askargs
+            % * https://semantic-mediawiki.org/wiki/Ask_API
+            % * https://www.semantic-mediawiki.org/w/api.php?action=help&modules=askargs
             % EXAMPLE:
             %   conditions  = {"Category:Cars", "Actual mass::+"};
             %   printouts   = "Actual mass";
@@ -276,14 +361,14 @@ classdef MWClient < handle
                 parameters = '';
             end
             
-            apirams.action = 'askargs';
-            apirams.conditions = join_cellstr(conditions, '|', 'conditions');
-            apirams.printouts = join_cellstr(printouts, '|', 'printouts');
-            apirams.parameters = join_cellstr(parameters, '|', 'parameters');
-            %apirams.callApi_version = '3';  % results as json-list on smw-v3.+
+            apiargs.action = 'askargs';
+            apiargs.conditions = join_cellstr(conditions, '|', 'conditions');
+            apiargs.printouts = join_cellstr(printouts, '|', 'printouts');
+            apiargs.parameters = join_cellstr(parameters, '|', 'parameters');
+            %apiargs.callApi_version = '3';  % results as json-list on smw-v3.+
             
             obj.History = [];
-            response = obj.callApi(apirams);
+            response = obj.callApi([], [], apiargs);
             
             results = response.Body.Data.query.results;
         end
