@@ -1,8 +1,8 @@
-| project    | MatMWClient: A (semantic) MediaWiki client for Matlab.  |
+| project    | MatWiki: A (semantic) MediaWiki client for Matlab.  |
 |------------|---------------------------------------------------------|
 | release    | 0.1.0                                                   |
 | rel_date   | 15 Feb 2019                                             |
-| home       | https://github.com/JRCSTU/matmwclient                   |
+| home       | https://github.com/JRCSTU/MatWiki                   |
 | maintainer | Kostis Anagnostopoulos (ankostis@gmail.com)             |
 | license    | [EUPL 1.2](https://joinup.ec.europa.eu/collection/eupl) |
 | copyright  | [2019 European Commission](https://ec.europa.eu/jrc/)   |
@@ -18,6 +18,7 @@ As of Feb 2019, it is in a very early stage, just ~4 days of work:
   - Allow bots to login.
   - run `#ask` semantic-queries.
   - Rudimentary error-handling.
+  - Respects WP's UserAgent policy.
 - Not tested for `Matlab-9.4+` (**R2018a** or higher), where HTTP support 
   for `application/x-www-form-urlencoded` were not fully there yet.
 - Lightly tested only against `MediaWiki-1.31`.

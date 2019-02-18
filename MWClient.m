@@ -49,7 +49,7 @@ classdef MWClient < handle
         Version = '1.0.0-dev0'
         
         % Informative, and also used to derive the `UserAgent` header.
-        ProjectHome = 'https://github.com/JRCSTU/matmwclient';
+        ProjectHome = 'https://github.com/JRCSTU/MatWiki';
     end
     
     properties
@@ -394,7 +394,7 @@ classdef MWClient < handle
             m.mver = vinfos.Version;
             m.rel = version('-release');
             m.arch = computer('arch');
-            value = sprintf('MatMWClient/%s (%s) %s/%s (R%s; %s)', ...
+            value = sprintf('MatWiki/%s (%s) %s/%s (R%s; %s)', ...
                 MWClient.Version, MWClient.ProjectHome, m.prog, m.mver, m.rel, m.arch);
         end
     end

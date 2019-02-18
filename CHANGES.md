@@ -1,4 +1,11 @@
-# Changelog for MatMWClient
+# Changelog for MatWiki
+
+## 1.0.0
+- PROJECT RENAMED MatMWClient --> MatWiki
+- RENAME main class MWClient --> MWSite
+- Refactor DatumError --> MWError; add URL & History props.
+- Added User-Agent HTTP-header according to https://meta.wikimedia.org/wiki/User-Agent_policy
+  eg: ``MatWiki/1.0.0-dev0 (https://github.com/JRCSTU/MatWiki) MATLAB/9.5 (R2018b; win64)``
 
 ## 0.1.0
 - SUPPORT also MATLAB >= **R2016b**(9.1.x), instead of >= **R2018a**(9.4.x );
