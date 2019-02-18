@@ -41,10 +41,15 @@ classdef MWClient < handle
     % 
 
     properties (Constant)
+        % Informative, and also used to derive the `UserAgent` header.
+        %
         % * [Semantic versioning](https://semver.org/)
         % * [PEP440 versioning](https://www.python.org/dev/peps/pep-0440/)
         % * To DEVs: SYNC it with README.md & CHANGES.md.
         Version = '1.0.0-dev0'
+        
+        % Informative, and also used to derive the `UserAgent` header.
+        ProjectHome = 'https://github.com/JRCSTU/matmwclient';
     end
     
     properties
@@ -78,9 +83,9 @@ classdef MWClient < handle
         %   unless you set the 'SavePayload' HttpOption to `true`.
         History
 
-        % scalar(string) | char:
-        %   Stored to update UserAgent header, after login(). 
-        User
+        % String send with a repective HTTP-header.
+        % You may prefix these infos with those of your derrivative library/project.
+        UserAgent = MWClient.makeUserAgent();
     end
     
     properties (Dependent)
@@ -142,6 +147,8 @@ classdef MWClient < handle
             %
             % INPUT:
             %   user/pswd:    string
+            % THROWS:
+            %   DatumError: on any login-error
             
             narginchk(3, 3);
             
@@ -159,7 +166,6 @@ classdef MWClient < handle
                     '%s: cannot login due to: %s, %s', ...
                     string(obj.ApiUri), login.result, jsonencode(login.reason)).throw();
             end
-            obj.User = user;
         end
         
     end
@@ -251,7 +257,7 @@ classdef MWClient < handle
             %       if empty, defaults to `obj.HOptions` - not HttpOptions () empty-costructor.
             % OUTPUT
             % * response: matlab.net.http.ResponseMessage
-            % RAISE:
+            % THROWS:
             % * DatumEx: the Datum contains the original response.
             % * Other http-errors.
             % NOTES:
@@ -316,6 +322,8 @@ classdef MWClient < handle
             %   user/pswd:    string
             %  OUTPUT:
             %   obj: myself, for chained invocations.
+            % THROWS:
+            %   DatumError: on any login-error
             
             % Delete any auth-cookie, or 'api-login-fail-badsessionprovider' error.
             obj.Cookies = [];
@@ -371,6 +379,23 @@ classdef MWClient < handle
             response = obj.callApi([], [], apiargs);
             
             results = response.Body.Data.query.results;
+        end
+    end
+    
+    
+    methods (Static)
+        function value = makeUserAgent()
+            % The string to append on each api-call.
+            %
+            % See also https://meta.wikimedia.org/wiki/User-Agent_policy
+            % See also https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/User-Agent
+            vinfos = ver();
+            m.prog = vinfos.Name;
+            m.mver = vinfos.Version;
+            m.rel = version('-release');
+            m.arch = computer('arch');
+            value = sprintf('MatMWClient/%s (%s) %s/%s (R%s; %s)', ...
+                MWClient.Version, MWClient.ProjectHome, m.prog, m.mver, m.rel, m.arch);
         end
     end
 end
