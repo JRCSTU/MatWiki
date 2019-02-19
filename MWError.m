@@ -10,17 +10,23 @@ classdef MWError < MException
 % You may obtain a copy of the Licence at: http://ec.europa.eu/idabc/eupl
     
     properties
-        Datum
+        HCall  % HttpCall
     end
     
     methods
-        function obj = MWError(datum, identifier, message, varargin)
+        function obj = MWError(call, identifier, message, varargin)
         % It uses `sprintf` internally bc MException() constructor accepts only string & scalars.
-        
+            
+            hc = matlab.unittest.diagnostics.ConstraintDiagnostic.getDisplayableString(call);
+            try
+                method = call.request.Method;
+            catch
+                method = '<method>';
+            end
             obj@MException(identifier, ...
-                '%s\n\nTIP: there is a `%s` related to this error:\n    MWError.last.Datum', ...
-                sprintf(message, varargin{:}), class(datum));
-            obj.Datum = datum;
+                '%s\n\n+ Related HttpCall (currently at MException.last.HCall):\n  %s(%s))\n%s', ...
+                sprintf(message, varargin{:}), string(method), string(call.uri), hc);
+            obj.HCall = call;
         end
     end
 end

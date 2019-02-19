@@ -141,8 +141,8 @@ classdef MWSite < handle
             apiargs.meta = 'tokens';
             apiargs.type = type;
 
-            response = obj.callApi(apiargs);
-            token = response.Body.Data.query.tokens.([type 'token']);
+            call = obj.callApi(apiargs);
+            token = call.response.Body.Data.query.tokens.([type 'token']);
         end
         
             
@@ -163,13 +163,13 @@ classdef MWSite < handle
             postargs.lgtoken = obj.newTokenImpl('login');
             postargs.lgpassword = pswd; 
             
-            response = obj.callApi(uriargs, [], [], postargs);
-            login = response.Body.Data.login;
+            call = obj.callApi(uriargs, [], [], postargs);
+            login = call.response.Body.Data.login;
             
             if ~strcmp(login.result, 'Success')
-                MWError(response, 'MWSite:loginDenied', ...
-                    '%s: cannot login due to: %s, %s', ...
-                    string(obj.ApiUri), login.result, jsonencode(login.reason)).throw();
+                MWError(call, 'MWSite:loginDenied', ...
+                    'cannot login due to: %s, %s', ...
+                    login.result, jsonencode(login.reason)).throw();
             end
         end
         
@@ -256,7 +256,7 @@ classdef MWSite < handle
         end
         
         
-        function response = callApi(obj, uriargs, varargin)
+        function call = callApi(obj, uriargs, varargin)
             % The HTTP-Gateway with MW-error handling, preserving the response for examination.
             %
             % SYNTAX:
@@ -272,7 +272,7 @@ classdef MWSite < handle
             %   reqHandlers: (optional) cellarray of @func(HttpCall) | {}
             %   respHandlers:(optional) cellarray of @func(HttpCall)) | {}
             % OUTPUT
-            % * response: matlab.net.http.ResponseMessage
+            % * call: HttpCall
             % THROWS:
             % * DatumEx: the Datum contains the original response.
             % * Other http-errors.
@@ -296,21 +296,22 @@ classdef MWSite < handle
             [response, history] = obj.Pipeline.doCall(call);
 
             obj.appendHistory(history);
-            
+            % do not update call's history with all high-level calls.
+
             result = response.Body.Data;
             apiErr = response.Header.getFields("MediaWiki-API-Error");
             
             if isfield(result, 'errors')
                 % If req-param `formatversion!=2` this prop becomes singular: 'error'!
-                MWError(response, 'MWSite:gotError', ...
-                    '%s: MediaWiki-API-Error: %s\n\n%s', ...
-                    uri, strjoin({result.errors.code}, ', '), jsonencode(result.errors)).throw();
+                MWError(call, 'MWSite:gotError', ...
+                    'MediaWiki-API-Error: %s\n\n%s', ...
+                    strjoin({result.errors.code}, ', '), jsonencode(result.errors)).throw();
             elseif ~isempty(apiErr)
-                MWError(response, 'MWSite:APIError', ...
-                    '%s: %s\n\n%s', uri, apiErr, response.Body.Data).throw();
+                MWError(call, 'MWSite:APIError', ...
+                    '%s\n\n%s', apiErr, response.Body.Data).throw();
             elseif isstring(result) && contains(result, '<title>MediaWiki API help')
-                MWError(response, 'MWSite:gotApiHelpPage', ...
-                    '%s: returned just the API help-page! (no `action` param given?)', uri).throw();
+                MWError(call, 'MWSite:gotApiHelpPage', ...
+                    'returned just the API help-page! (no `action` param given?)').throw();
             end
         end
 
@@ -398,9 +399,9 @@ classdef MWSite < handle
             postargs.parameters = join_cellstr(parameters, '|', 'parameters');
             
             obj.History = [];
-            response = obj.callApi(apiargs, [], [], postargs);
+            call = obj.callApi(apiargs, [], [], postargs);
             
-            results = response.Body.Data.query.results;
+            results = call.response.Body.Data.query.results;
         end
     end
     

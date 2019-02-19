@@ -5,7 +5,9 @@
 - REFACT: SPLIT classes across `HttpPipeline`, `HttpCall`, `HttpSession`(handlers) & `MwSite`,
   so client operations can inspect and modify request & response with callbaks (handlers)
   (ala [apache axis](http://axis.apache.org/axis2/java/core/docs/userguide.html#handlessoap)).
-- Refact DatumError --> MWError, inherit from HttpCall; (to contain URL, response & History).
+- Refact DatumError --> MWError:
+  - rename property Datum --> HttpCall.
+  - store the hole call instead of just the response/request.
 - ENH: Added User-Agent HTTP-header according to https://meta.wikimedia.org/wiki/User-Agent_policy
 _ Use GET for tokens, and pass most API params in the URI - keep the post only 
   for password and tokens (by the API recomendation).
