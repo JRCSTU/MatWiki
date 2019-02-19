@@ -1,13 +1,17 @@
 classdef HttpSession < handle
     % HttpPipe filters for storing redirects & cookies from requests.
     %
-    % EXAMPLES:
-    %   s = HttpSession();
-    %   url = 'https://www.mediawiki.org/w/api.php';
-    %   p.action = 'query';
-    %   p.prop = 'info';
-    %   p.titles = 'Main Page';
-    %   s.send(url, p);
+    % EXAMPLE:
+    %
+    %    %% Setup pipeline (only once).
+    %    %
+    %    pipe = HttpPipe();
+    %    pipe.appendReqFilter(@obj.sessionRequestFilter);
+    %    pipe.appendRespFilter(@obj.sessionResponeFilter);
+    %
+    %    call = HttpCall(url, method, headers, body, options);
+    %    [response, history] = pipe.doCall(call);
+    %
     % NOTES:
 	% * Based on https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
     %
@@ -156,56 +160,6 @@ classdef HttpSession < handle
                      obj.Infos(char(ahost)) = struct('cookies',cookies,'uri',[]);
                  end
             end
-        end
-        
-        
-        function [response, history] = sendParams(obj, varargin)
-            % Utility HTTP-req sending form-encoded BODY-params with session-cookies & redirects.
-            %
-            % SYNTAX:
-            %   function [response, history] = sendParams(obj, uri, method, headers, body, options)
-            % INPUT:
-            % * uri:      string | matlab.net.URI
-            % * method:   (optional) default: GET if `body` is empty, POST otherwise.
-            % * headers:  (optional) matlab.net.http.HeaderField | makeHeaders(<any>)
-            % * body:     (optional) matlab.net.http.MessageBody | makeQParams(<any>)
-            % * options:  (optional) matlab.net.http.HttpOptions | makeOptions(<any>)
-            %       if empty, defaults to HttpOptions () empty-costructor.
-            %   reqFilters: (optional) cellarray of @func(HttpCall) | {}
-            %   respFilters:(optional) cellarray of @func(HttpCall)) | {}
-            % OUTPUT:
-            % * response: matlab.net.http.ResponseMessage
-            % * history: matlab.net.http.LogRecord
-            % RAISE:
-            %   DatumEx: on Status != OK; the Datum contains the original response.
-            % NOTES:
-            % * Creates internally a new pipe everytime; PREFER to replicate this method 
-            %   in your client code.
-            % * A struct or QueryParameters as body are POSTed as urlencoded-form-params,
-            %     unless user overrides ContentType header.
-            % * On HTTP-error, retrieve the original response using this
-            %     on the command-line::
-            %
-            %       MException.last.Datum
-            % EXAMPLES:
-            %   [response, history] = sendParams(url)                          % GET
-            %   [response, history] = sendParams(url, [], {'UserAgent', ...})  % GET
-            %   [response, history] = sendParams(url, [], [], {'p1', 'val1'})  % POST
-            
-            narginchk(2, 7);
-            
-            call = HttpCall(varargin{1:min(end, 5)});
-            
-            if length(varargin) >= 6
-                filters = varargin(min(end, 6):min(end, 7));
-            else
-                filters = {};
-            end
-            pipe = HttpPipe(filters{:});
-            pipe.appendReqFilter(@obj.sessionRequestFilter);
-            pipe.appendRespFilter(@obj.sessionResponeFilter);
-
-            [response, history] = pipe.doCall(call);
         end
     end
 end
