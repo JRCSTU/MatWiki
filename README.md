@@ -10,8 +10,20 @@
 A ([semantic](https://semantic-mediawiki.org)) [MediaWiki](https://www.mediawiki.org) 
 client for [Matlab](https://www.mathworks.com/products/matlab.html).
 
-## Status
-As of Feb 2019, it is in a very early stage, just ~4 days of work:
+## Example:
+```matlab
+>> url = 'http://some.wiki.org/wiki/api.php';
+>> mw = MWSite(url).login('Ankostis@test','qu8hqc8f07se3ra05ufcn89keecpmgtk');  % bot password 
+>> mw.askargs('Category:Cars', 'Vehicle OEM', 'limit=3')
+>> disp(jsonencode(results))
+    AR004: [1×1 struct]
+    AR005: [1×1 struct]
+    AR006: [1×1 struct]
+```
+
+
+## Status:
+As of Feb 2019, it is in a very early stage, just a week of work:
 - REQUIRES _MATLAB_ >= **R2016b**(9.1.x) for string-vectors & proper HTTP support.
   (e.g. for cookies: https://www.mathworks.com/help/matlab/ref/matlab.net.http.cookieinfo-class.html).
 - Features:
@@ -19,19 +31,21 @@ As of Feb 2019, it is in a very early stage, just ~4 days of work:
   - run `#ask` semantic-queries.
   - Rudimentary error-handling.
   - Respects some of WP's UserAgent policies (Valid UserAgent, Easy to Debug).
-  - Http calls pass through pipelines of filters, to allow for extending without inheriting
-   (influened by [apache axis](http://axis.apache.org/axis2/java/core/docs/userguide.html#handlessoap)).
+  - Http machinery implemented as a pipeline of filter (callbacks).
 - Not tested for `Matlab-9.4+` (**R2018a** or higher), where HTTP support 
   for `application/x-www-form-urlencoded` were not fully there yet.
 - Lightly tested only against `MediaWiki-1.31`.
-- See also: [Changelog](./CHANGES.md)
+- Read [Contents](./Contents.m) for an overview of the library code.
+- Read also the [Changelog](./CHANGES.md) of the project.
 
 
 ## Notes:
 - Http-session handling based on MATLAB's ["official" sample code](https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html).
-- Design slightly influenced by the [_python_ client library](https://github.com/mwclient/mwclient/blob/master/mwclient/client.py).
+- Design influenced by:
+  - [apache axis](http://axis.apache.org/axis2/java/core/docs/userguide.html#handlessoap)
+  - [_python_ client library](https://github.com/mwclient/mwclient/blob/master/mwclient/client.py)
 
-
+  
 ## Example code:
 - Place all the mat-files of this project somewhere in your MATLAB's _search-path_,
 - generate a [bot-password with adequate permissions](https://www.mediawiki.org/wiki/Manual:Bot_passwords) for your wiki, and 
