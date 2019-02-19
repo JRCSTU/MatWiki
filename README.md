@@ -31,7 +31,7 @@ As of Feb 2019, it is in a very early stage, just a week of work:
   - run `#ask` semantic-queries.
   - Rudimentary error-handling.
   - Respects some of WP's UserAgent policies (Valid UserAgent, Easy to Debug).
-  - Http machinery implemented as a pipeline of filter (callbacks).
+  - Http machinery implemented as a pipeline of "handlers" (callbacks).
 - Not tested for `Matlab-9.4+` (**R2018a** or higher), where HTTP support 
   for `application/x-www-form-urlencoded` were not fully there yet.
 - Lightly tested only against `MediaWiki-1.31`.

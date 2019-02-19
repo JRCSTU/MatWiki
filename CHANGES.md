@@ -2,8 +2,8 @@
 
 ## 1.0.0: 19 Feb 2019
 - RENAME main class MWClient --> MWSite
-- REFACT: SPLIT classes across `HttpPipeline`, `HttpCall`, `HttpSession`(filters) & `MwSite`,
-  so client operations can inspect and modify request & response with callbaks (filters)
+- REFACT: SPLIT classes across `HttpPipeline`, `HttpCall`, `HttpSession`(handlers) & `MwSite`,
+  so client operations can inspect and modify request & response with callbaks (handlers)
   (ala [apache axis](http://axis.apache.org/axis2/java/core/docs/userguide.html#handlessoap)).
 - Refact DatumError --> MWError, inherit from HttpCall; (to contain URL, response & History).
 - ENH: Added User-Agent HTTP-header according to https://meta.wikimedia.org/wiki/User-Agent_policy

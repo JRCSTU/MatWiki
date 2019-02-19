@@ -116,7 +116,7 @@ classdef MWSite < handle
         end
         
         
-        function addUserAgentRequestFilter(obj, call)
+        function addUserAgentRequestHandler(obj, call)
             if isempty(call.request.getFields('User-Agent'))
                 call.request = call.request.addFields('User-Agent', obj.UserAgent);
             end
@@ -204,8 +204,8 @@ classdef MWSite < handle
             obj.Session = kvpairs.Session;
             s = obj.Session;
             obj.Pipeline = HttpPipeline(...
-                { @s.sessionRequestFilter @obj.addUserAgentRequestFilter}, ...
-                { @HttpPipeline.assertHttpOkResponseFilter, @s.sessionResponseFilter });
+                { @s.sessionRequestHandler @obj.addUserAgentRequestHandler}, ...
+                { @HttpPipeline.assertHttpOkResponseHandler, @s.sessionResponseHandler });
         end
         
         
@@ -269,8 +269,8 @@ classdef MWSite < handle
             % * body:       (optional) matlab.net.http.MessageBody | makeQParams(<any>)
             % * hoptions:   (optional) matlab.net.http.HttpOptions | makeHOptions(<any>)
             %       if empty, defaults to `obj.HOptions` - not HttpOptions () empty-costructor.
-            %   reqFilters: (optional) cellarray of @func(HttpCall) | {}
-            %   respFilters:(optional) cellarray of @func(HttpCall)) | {}
+            %   reqHandlers: (optional) cellarray of @func(HttpCall) | {}
+            %   respHandlers:(optional) cellarray of @func(HttpCall)) | {}
             % OUTPUT
             % * response: matlab.net.http.ResponseMessage
             % THROWS:

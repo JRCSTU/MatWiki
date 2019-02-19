@@ -1,13 +1,13 @@
 classdef HttpCall < handle
-    % Matlab's builtin-types converted as HTTP objects that pass through HttpPipeline filters.
+    % Matlab's builtin-types converted as HTTP objects that pass through HttpPipeline handlers.
     %
     % EXAMPLE:
     %
-    %       % Define your own filters.
+    %       % Define your own handlers.
     %       %
-    %       reqFilters = {...}
-    %       respFilters = {...};
-    %       pipeline = HttpPipe(reqFilters, respFilters);
+    %       reqHandlers = {...}
+    %       respHandlers = {...};
+    %       pipeline = HttpPipe(reqHandlers, respHandlers);
     %
     %       call = HttpCall(...);
     %       [response, history] = pipeline.doCall(call);

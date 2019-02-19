@@ -1,14 +1,14 @@
 classdef HttpPipeline < handle
-    % Apply "filters" on HttpCall before & after the request/response operation.
+    % Apply "handlers" on HttpCall before & after the request/response operation.
     %
     % EXAMPLE:
     %
     %       obj = HttpPipeline();
     %
-    %       % Append your own filters.
+    %       % Append your own handlers.
     %       %
-    %       obj.appendReqFilter = ...  
-    %       obj.appendRespFilter = ...  
+    %       obj.appendReqHandler = ...  
+    %       obj.appendRespHandler = ...  
     %
     %       httcall = HttpCall(
     %
@@ -22,18 +22,18 @@ classdef HttpPipeline < handle
 
     properties
         % cellarray of: @func(httpCall) | {}
-        ReqFilters = {};
+        ReqHandlers = {};
         % cellarray of: @func(httpCall) | {}
-        RespFilters = {};
+        RespHandlers = {};
     end
 
     methods
-        function obj = HttpPipeline(reqFilters, respFilters)
+        function obj = HttpPipeline(reqHandlers, respHandlers)
             % Convert matlab builtin-types into objects for HTTP-request.
             %
             % INPUT:
-            %   reqFilters: (optional) cellarray of @func(HttpCall) | {}
-            %   respFilters:(optional) cellarray of @func(HttpCall)) | {}
+            %   reqHandlers: (optional) cellarray of @func(HttpCall) | {}
+            %   respHandlers:(optional) cellarray of @func(HttpCall)) | {}
             % OUTPUT:
             %   reqstruct:  struct(scalar)
             %               With the same-named fields, but wrapped in HTTP-classes,
@@ -47,48 +47,48 @@ classdef HttpPipeline < handle
             % SEE ALSO
             % * HttpCall()
 
-            if exist('reqFilters', 'var')
-                obj.ReqFilters = reqFilters;
+            if exist('reqHandlers', 'var')
+                obj.ReqHandlers = reqHandlers;
             end
-            if exist('respFilters', 'var')
-                obj.RespFilters = respFilters;
+            if exist('respHandlers', 'var')
+                obj.RespHandlers = respHandlers;
             end
         end
         
         
-        function set.ReqFilters(obj, c)
+        function set.ReqHandlers(obj, c)
             if isempty(c)
-                obj.ReqFilters = {};
+                obj.ReqHandlers = {};
             else
                 assert(isFuncs(c), ...
-                    'Invalid `reqFilters`!\n  Expected a cell-of-@func, got: %s', c);
-                obj.ReqFilters = c;
+                    'Invalid `reqHandlers`!\n  Expected a cell-of-@func, got: %s', c);
+                obj.ReqHandlers = c;
             end
         end
-        function set.RespFilters(obj, c)
+        function set.RespHandlers(obj, c)
             if isempty(c)
-                obj.RespFilters = {};
+                obj.RespHandlers = {};
             else
                 assert(isFuncs(c), ...
-                    'Invalid `respFilters`!\n  Expected a cell-of-@func, got: %s', c);
-                obj.RespFilters = c;
+                    'Invalid `respHandlers`!\n  Expected a cell-of-@func, got: %s', c);
+                obj.RespHandlers = c;
             end
         end
         
-        function appendReqFilter(obj, filtfunc)
-            obj.ReqFilters =  [ obj.ReqFilters  { filtfunc } ];
+        function appendReqHandler(obj, filtfunc)
+            obj.ReqHandlers =  [ obj.ReqHandlers  { filtfunc } ];
         end
-        function appendRespFilter(obj, filtfunc)
-            obj.RespFilters =  [ obj.RespFilters  { filtfunc } ];
+        function appendRespHandler(obj, filtfunc)
+            obj.RespHandlers =  [ obj.RespHandlers  { filtfunc } ];
         end
         
         function [response, history] = doCall(obj, call)
-            % Send the HTTP request and apply request(before) & response(after) filters on objects involved.
+            % Send the HTTP request and apply request(before) & response(after) handlers on objects involved.
             %
             % INPUT:
             %   reqstruct:  struct(scalar)
             %               Fields from `HttpPipeline.prepareHttpPipeline()`:
-            %               uri, method, headers, body, options, reqFilters, respFilters
+            %               uri, method, headers, body, options, reqHandlers, respHandlers
             % OUTPUT:
             % * response: matlab.net.http.ResponseMessage
             % * history: matlab.net.http.LogRecord
@@ -96,7 +96,7 @@ classdef HttpPipeline < handle
             validateattributes(call, {'HttpCall'}, {'scalar', 'nonempty'}, ...
                 mfilename, 'call');
             
-            for f = obj.ReqFilters
+            for f = obj.ReqHandlers
                 f{1}(call);
             end
             
@@ -105,7 +105,7 @@ classdef HttpPipeline < handle
             call.request = completedRequest;
             call.history = history;
             
-            for f = obj.RespFilters
+            for f = obj.RespHandlers
                 f{1}(call);
             end
         end
@@ -113,13 +113,13 @@ classdef HttpPipeline < handle
     end
     
     methods (Static)
-        function assertHttpOkResponseFilter(call)
+        function assertHttpOkResponseHandler(call)
             % Scream if HTTP-response not Status==OK.
             %
             % INPUT/OUTPUT:
             %   call: HttpCall
             % NOTES:
-            % * Respone-filter for `HttpPipeline()`.
+            % * Respone-handler for `HttpPipeline()`.
             % RAISE:
             %   DatumEx: last response's Status != OK; the Datum contains the original response.
 

@@ -1,13 +1,13 @@
 classdef HttpSession < handle
-    % HttpPipeline filters for storing redirects & cookies from requests.
+    % HttpPipeline handlers for storing redirects & cookies from requests.
     %
     % EXAMPLE:
     %
     %    %% Setup pipeline (only once).
     %    %
     %    pipeline = HttpPipe();
-    %    pipeline.appendReqFilter(@obj.sessionRequestFilter);
-    %    pipeline.appendRespFilter(@obj.sessionResponeFilter);
+    %    pipeline.appendReqHandler(@obj.sessionRequestHandler);
+    %    pipeline.appendRespHandler(@obj.sessionResponeHandler);
     %
     %    call = HttpCall(url, method, headers, body, options);
     %    [response, history] = pipeline.doCall(call);
@@ -64,13 +64,13 @@ classdef HttpSession < handle
         end
         
         
-        function sessionRequestFilter(obj, httpcall)
+        function sessionRequestHandler(obj, httpcall)
             % Apply permanent-redirects and add Set-cookie(session) headers of HTTP-request.
             %
             % INPUT:
             % 	call: HttpCall
             % NOTES:
-            % * Request-filter for `HttpPipeline`.
+            % * Request-handler for `HttpPipeline`.
             % * Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
         
             uri = httpcall.uri;
@@ -97,13 +97,13 @@ classdef HttpSession < handle
         end
         
         
-        function sessionResponseFilter(obj, httpcall)
+        function sessionResponseHandler(obj, httpcall)
             % Detect permanent-redirects and update cookies-store (session) from HTTP-response.
             %
             % INPUT:
             % 	call: HttpCall
             % NOTES:
-            % * Respone-filter for `HttpPipeline`.
+            % * Respone-handler for `HttpPipeline`.
             % * Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
 
             if httpcall.response.StatusCode ~= matlab.net.http.StatusCode.OK
