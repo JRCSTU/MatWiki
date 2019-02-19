@@ -292,6 +292,9 @@ classdef MWSite < handle
             end 
             
             call = HttpCall(uri, varargin{1:min(end, 4)});
+            if isempty(call.options)  % TODO: UNIFY API PARSING!
+                call.options = obj.HOptions;
+            end
             
             [response, history] = obj.Pipeline.doCall(call);
 
