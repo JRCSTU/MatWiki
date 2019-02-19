@@ -46,7 +46,7 @@ classdef MWClient < handle
         % * [Semantic versioning](https://semver.org/)
         % * [PEP440 versioning](https://www.python.org/dev/peps/pep-0440/)
         % * To DEVs: SYNC it with README.md & CHANGES.md.
-        Version = '1.0.0-dev0'
+        Version = '0.1.1'
         
         % Informative, and also used to derive the `UserAgent` header.
         ProjectHome = 'https://github.com/JRCSTU/MatWiki';
