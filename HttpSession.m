@@ -4,6 +4,8 @@
 % You may obtain a copy of the Licence at: http://ec.europa.eu/idabc/eupl
 
 classdef HttpSession < handle
+    % HttpPipe filters for storing redirects & cookies from requests.
+    %
     % EXAMPLES:
     %   s = HttpSession();
     %   url = 'https://www.mediawiki.org/w/api.php';
@@ -12,8 +14,6 @@ classdef HttpSession < handle
     %   p.titles = 'Main Page';
     %   s.send(url, p);
     % NOTES:
-    % * WARN: UNTESTED Matlab < 9.4 (< R2018a) with urlencoded parameters in the POST's body,
-    %     where HTTP support for "application/x-www-form-urlencoded" in non excistent!
 	% * Based on https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
 
     properties
@@ -27,10 +27,6 @@ classdef HttpSession < handle
 
     methods
         function obj = HttpSession()
-            if verLessThan('matlab', '9.1')
-                error('Matlab 9.1 (R2016b) or higher required for HTTP support with cookies.');
-            end
-
             obj.Infos = containers.Map;
         end
         
@@ -63,44 +59,61 @@ classdef HttpSession < handle
         end
         
         
-        function [response, history] = sendRequest(obj, uri, request, varargin)
-            % Low-level matlab.net.HTTP request with permanent-redirection and cookies-store (session).
+        function sessionRequestFilter(obj, httpcall)
+            % Apply permanent-redirects and add Set-cookie(session) headers of HTTP-request.
             %
-            % SYNTAX:
-            %   [response, history] = sendRequest(obj, uri, request, [ options, [ consumer ] ])
-            %       from matlab.net.http.RequestMessage.send()
             % INPUT:
-            % * uri: matlab.net.URI
-            % * request: matlab.net.http.RequestMessage
-            % OUTPUT:
-            % * response: matlab.net.http.ResponseMessage
-            % * history: matlab.net.http.LogRecord
+            % 	call: HttpCall
             % NOTES:
+            % * Request-filter for `HttpPipe`.
             % * Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
         
-            host = string(uri.Host);
+            uri = httpcall.uri;
+            request = httpcall.request;
+            
+            host = uri.Host;
             try
                 % get info struct for host in map
                 info = obj.Infos(host);
                 if ~isempty(info.uri)
                     % If it has a uri field, it means redirected previously,
                     % so replace requested URI with redirected one.
-                    uri = info.uri;
+                    httpcall.uri = info.uri;
                 end
                 if ~isempty(info.cookies)
                     % If it has cookies, it means we previously received cookies from this host.
                     % Add Cookie header field containing all of them.
-                    request = request.addFields(matlab.net.http.field.CookieField(info.cookies));
+                    httpcall.request = request.addFields(matlab.net.http.field.CookieField(info.cookies));
                 end
             catch
                 % no previous redirect or cookies for this host
-                info = [];
             end
 
-            % Send request and get response and history of transaction.
-            [response, ~, history] = request.send(uri, varargin{:});
-            if response.StatusCode ~= matlab.net.http.StatusCode.OK
+        end
+        
+        
+        function sessionResponseFilter(obj, httpcall)
+            % Detect permanent-redirects and update cookies-store (session) from HTTP-response.
+            %
+            % INPUT:
+            % 	call: HttpCall
+            % NOTES:
+            % * Respone-filter for `HttpPipe`.
+            % * Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
+
+            if httpcall.response.StatusCode ~= matlab.net.http.StatusCode.OK
                 return
+            end
+            
+            uri = httpcall.uri; 
+            history = httpcall.history;
+            
+            host = uri.Host;
+            try
+                info = obj.Infos(host);
+            catch
+                % no previous redirect or cookies for this host
+                info = [];
             end
 
             % Get the Set-Cookie header fields from response message in
@@ -113,42 +126,43 @@ classdef HttpSession < handle
             if ~isequal(targetURI, uri)
                 if isempty(info)
                     % no previous info for this host in map, create new one
-                    obj.Infos(char(host)) = struct('cookies',[],'uri',targetURI);
+                    obj.Infos(host) = struct('cookies',[],'uri',targetURI);
                 else
                     % change URI in info for this host and put it back in map
                     info.uri = targetURI;
-                    obj.Infos(char(host)) = info;
+                    obj.Infos(host) = info;
                 end
             end
             
             function addCookies(record)
-                % Utility to add cookies in Response message in history record
-                % to the map entry for the host to which the request was directed.
-                %
-                ahost = record.URI.Host; % the host the request was sent to
-                cookieFields = record.Response.getFields('Set-Cookie');
-                if isempty(cookieFields)
-                    return
-                end
-                cookieData = cookieFields.convert(); % get array of Set-Cookie structs
-                cookies = [cookieData.Cookie]; % get array of Cookies from all structs
-                try
-                    % If info for this host was already in the map, add its cookies to it.
-                    ainfo = obj.Infos(ahost);
-                    ainfo.cookies = [ainfo.cookies cookies];
-                    obj.Infos(char(ahost)) = ainfo;
-                catch
-                    % Not yet in map, so add new info struct.
-                    obj.Infos(char(ahost)) = struct('cookies',cookies,'uri',[]);
-                end
+                 % Utility to add cookies in Response message in history record
+                 % to the map entry for the host to which the request was directed.
+                 %
+                 ahost = record.URI.Host; % the host the request was sent to
+                 cookieFields = record.Response.getFields('Set-Cookie');
+                 if isempty(cookieFields)
+                     return
+                 end
+                 cookieData = cookieFields.convert(); % get array of Set-Cookie structs
+                 cookies = [cookieData.Cookie]; % get array of Cookies from all structs
+                 try
+                     % If info for this host was already in the map, add its cookies to it.
+                     ainfo = obj.Infos(ahost);
+                     ainfo.cookies = [ainfo.cookies cookies];
+                     obj.Infos(char(ahost)) = ainfo;
+                 catch
+                     % Not yet in map, so add new info struct.
+                     obj.Infos(char(ahost)) = struct('cookies',cookies,'uri',[]);
+                 end
             end
-
         end
         
-
-        function [response, history] = sendParams(obj, uri, method, headers, body, options)
-            % High-level HTTP-req sending form-encoded BODY-params and raising http-errors.
+        
+        function [response, history] = sendParams(obj, varargin)
+            % Utility HTTP-req sending form-encoded BODY-params with session-cookies & redirects.
             %
+            % SYNTAX:
+            %   function [response, history] = sendParams(obj, uri, method, headers, body, options)
             % INPUT:
             % * uri:      string | matlab.net.URI
             % * method:   (optional) default: GET if `body` is empty, POST otherwise.
@@ -156,15 +170,19 @@ classdef HttpSession < handle
             % * body:     (optional) matlab.net.http.MessageBody | makeQParams(<any>)
             % * options:  (optional) matlab.net.http.HttpOptions | makeOptions(<any>)
             %       if empty, defaults to HttpOptions () empty-costructor.
+            %   reqFilters: (optional) cellarray of @func(HttpCall) | {}
+            %   respFilters:(optional) cellarray of @func(HttpCall)) | {}
             % OUTPUT:
             % * response: matlab.net.http.ResponseMessage
             % * history: matlab.net.http.LogRecord
             % RAISE:
             %   DatumEx: on Status != OK; the Datum contains the original response.
             % NOTES:
+            % * Creates internally a new pipe everytime; PREFER to replicate this method 
+            %   in your client code.
             % * A struct or QueryParameters as body are POSTed as urlencoded-form-params,
             %     unless user overrides ContentType header.
-            % * On HTTP-error, retrieve the original response using this 
+            % * On HTTP-error, retrieve the original response using this
             %     on the command-line::
             %
             %       MException.last.Datum
@@ -172,161 +190,21 @@ classdef HttpSession < handle
             %   [response, history] = sendParams(url)                          % GET
             %   [response, history] = sendParams(url, [], {'UserAgent', ...})  % GET
             %   [response, history] = sendParams(url, [], [], {'p1', 'val1'})  % POST
-
-            narginchk(2, 6);
             
-            if ~isa(uri, 'matlab.net.URI')
-                uri = matlab.net.URI(uri);
-            end
+            narginchk(2, 7);
             
-            if ~exist('headers', 'var') || isempty(headers)
-                headers = [];
+            call = HttpCall(varargin{1:min(end, 5)});
+            
+            if length(varargin) >= 6
+                filters = varargin(min(end, 6):min(end, 7));
             else
-                headers = HttpSession.makeHeaders(headers);
+                filters = {};
             end
-            
-            if ~exist('options', 'var') || isempty(options)
-                options = [];
-            else
-                options = HttpSession.makeHOptions(options);
-            end
-            
-            if ~exist('body', 'var') || isempty(body)
-                body = [];
-            else
-                if ~isa(body, 'matlab.net.http.MessageBody')
-                    body = HttpSession.makeQParams(body);
-                    % body now a matlab.net.QueryParameter
+            pipe = HttpPipe(filters{:});
+            pipe.appendReqFilter(@obj.sessionRequestFilter);
+            pipe.appendRespFilter(@obj.sessionResponeFilter);
 
-                    if verLessThan('matlab', '9.4')
-                        % TODO: UNTESTED CODE in MATLAB versions < R2017a.
-                        %
-                        % In MATLAB < R2017a, passing a QueryParameter body did not trigger 
-                        % payload to be populated as "x-www-form-urlencoded", bc this media-type
-                        % were not properly registered yet - "application/json" were used instead.
-                        %
-                        % So we set body's payload and ContentType explicitly.
-
-                        % No UTF8 needed since urlencoded.
-                        bodyBytes = unicode2native(string(body), 'ASCII');
-                        body = matlab.net.http.MessageBody();
-                        body.Payload = bodyBytes;
-                        ctf = matlab.net.http.field.ContentTypeField("application/x-www-form-urlencoded");
-                        headers = [headers, ctf];  % user can still override
-                    end
-                end
-            end
-            
-            if ~exist('method', 'var') || isempty(method)
-                if isempty(body)
-                    method = 'GET';
-                else
-                    method = 'POST';
-                end
-            end
-            
-            request = matlab.net.http.RequestMessage(method, headers, body);
-            [response, history] = obj.sendRequest(uri, request, options);
-            
-            if response.StatusCode ~= matlab.net.http.StatusCode.OK
-                DatumError(response, ...
-                    sprintf('HttpError:%s', response.StatusCode), ...
-                    '%s(%s): %s(%d) \n\n%s', ...
-                    method, uri, response.StatusCode, response.StatusCode, response.Body).throw();
-            end
-        end
-
-    end
-    
-    methods (Static)
-        function headers = makeHeaders(arg)
-            % Utility to convert matlab builtin types into HTTP objects.
-            %
-            % INPUT:
-            %   arg:  HeaderField | cell Mx2| string | structarray.(Name, Value) 
-            % OUTOUT:
-            % headers: matlab.net.http.HeaderField (possibly 0x0)
-            % THROWS:
-            %   DatumError(arg, 'HttpSession:invalidHeadersArg')
-            % EXAMPLES:
-            %   HttpSession.makeHeaders([]) OR ({}) OR ('')	--> 0x0 HeaderField 
-            %   HttpSession.makeHeaders('a')                --> a=
-            %   HttpSession.makeHeaders({'a'})              --> a=
-            %   HttpSession.makeHeaders(["a", "b"])         --> a=b
-            %   HttpSession.makeHeaders({'a', 2, 'c'})      --> 1x2
-            %   s = struct("Name", '2', 'Value', "d");
-            %   HttpSession.makeHeaders(s)                  --> 1x1
-            %   HttpSession.makeHeaders([s s])              --> 1x2
-            % NOTE:
-            % * don't create dupes!
-            % * i hate matlab's type-system.
-            
-            if isempty(arg) || isstring(arg) && all("" == arg)
-                headers = matlab.net.http.HeaderField.empty;
-            elseif isa(arg, 'matlab.net.http.HeaderField')
-                headers = arg;
-            elseif isstruct(arg)
-                arg = {arg.Name, arg.Value};
-            end
-            
-            if iscell(arg) || isstring(arg)
-                headers = matlab.net.http.HeaderField(arg{:});
-            end
-            
-            if ~exist('headers', 'var')
-                headers = matlab.net.http.HeaderField(arg);
-            end
-        end
-        
-        
-        function params = makeQParams(arg)
-            % Utility to convert matlab builtin types into HTTP objects.
-            %
-            % INPUT:
-            %   arg:  QueryParam | cell Mx2| string | struct(scalar)
-            % EXAMPLES:
-            %   HttpSession.makeQParams([]) OR ({}) OR ('')	--> 0x0 QueryParam
-            %   HttpSession.makeQParams({'a'}).string       --> "a"
-            %   'a=1'                                   --> a=1
-            %   ["a", "b"]                              --> a=b
-            %   {'a', 2, 'b', [], "c", ''}              --> a=2&b&c
-            %   "a=1&b=2"                               --> a=1&b=2
-            %   ["a=1&b=2", "g=5"]                      ==> a%3D1%26b%3D2=g%3D5
-            %   {'a=1&b=2', 'g=5'}                      ==> a%3D1%26b%3D2=g%3D5
-            %   s = struct("p1", 'val1', 'p2', "Val2");
-            %   s                                       --> p1=val1&p2=Val2
-            %   [s s]                                   --> 1x2
-            % FAILS:
-            %   HttpSession.makeQParams({'a', 'b', 'c'})    --> missing "c" calue!
-            %   HttpSession.makeQParams([s s])              --> struct must be scalar!
-            
-            if isempty(arg) || isstring(arg) && all("" == arg)
-                params = matlab.net.QueryParameter.empty;
-            elseif isa(arg, 'matlab.net.QueryParameter')
-                params = arg;
-            elseif isStringScalar(arg)
-                params = matlab.net.QueryParameter(arg);
-            elseif iscell(arg) || isstring(arg)
-                params = matlab.net.QueryParameter(arg{:});
-            end
-            
-            if ~exist('params', 'var')
-                params = matlab.net.QueryParameter(arg);
-            end
-        end
-        
-        
-        function params = makeHOptions(arg)
-            % Utility to convert matlab builtin types into HTTP objects.
-            if isempty(arg) || isstring(arg) && all("" == arg)
-                params = [];
-            elseif isa(arg, 'matlab.net.http.HTTPOptions')
-                params = arg;
-            elseif iscell(arg) || isstring(arg)
-                params = matlab.net.http.HTTPOptions(arg{:});
-            else
-                params = matlab.net.http.HTTPOptions(arg);
-            end
+            [response, history] = pipe.doCall(call);
         end
     end
 end

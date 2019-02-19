@@ -38,7 +38,6 @@ classdef MWClient < handle
     % You may not use this work except in compliance with the Licence.
     % You may obtain a copy of the Licence at: http://ec.europa.eu/idabc/eupl
     % Author: ankostis@gmail.com
-    % 
 
     properties (Constant)
         % Informative, and also used to derive the `UserAgent` header.
@@ -46,17 +45,23 @@ classdef MWClient < handle
         % * [Semantic versioning](https://semver.org/)
         % * [PEP440 versioning](https://www.python.org/dev/peps/pep-0440/)
         % * To DEVs: SYNC it with README.md & CHANGES.md.
-        Version = '1.0.0-dev0'
+        Version = '1.0.0.dev1'
         
         % Informative, and also used to derive the `UserAgent` header.
         ProjectHome = 'https://github.com/JRCSTU/MatWiki';
+    
+        % Class-wide params always included in the uri by `callApi()`.
+        % WARN: changing any of (json, formatversion, errorformat) 
+        % will invalidate the error-handling of responses in `callApi()`!
+        DefaultApiArgs = {'format', 'json', 'formatversion', 2, 'errorformat', 'plaintext'};
+    end
+    
+    properties (SetAccess=protected, AbortSet=true)
+        Pipe     % HttpPipe     (nonempty)
+        Session  % HttpSession (nonempty)
     end
     
     properties
-        % HttpSession:
-        %   (nonempty) 
-        Session  
-
         % matlab.net.URI:
         %   (nonempty) 
         ApiUri
@@ -70,13 +75,6 @@ classdef MWClient < handle
         %   HTTP-headers prepended to all HTTP-requests.
         Headers
 
-        % matlab.net.HttpOption:
-        % Class-wide params always included in the uri by `callApi()`.
-        % * NOTE: pass them on constructor instead of modifying thse ones, class-wide.
-        % * WARN: changing any of (json, formatversion, errorformat) will invalidate 
-        %   the error-handling of responses in `callApi()`!
-        ApiArgs  = {'format', 'json', 'formatversion', 2, 'errorformat', 'plaintext'};
-
         % matlab.net.http.LogRecord:
         %   For DEBUGGING, the http-conversation for the last high-level method called.
         %   NOTE that the request-bodies are not preserved in `History` (to preserve memory),
@@ -89,7 +87,7 @@ classdef MWClient < handle
     end
     
     properties (Dependent)
-      Cookies
+        Cookies
     end
     
     methods (Access=protected)
@@ -106,9 +104,9 @@ classdef MWClient < handle
             % If empty-session given, instanciates a new one.
             p = inputParser;
             p.addParameter('Session', [], @(x) isempty(x) || isa(x, 'HttpSession'));
-            p.addParameter('HOptions', obj.HOptions, @HttpSession.makeHOptions);
-            p.addParameter('Headers', obj.Headers, @HttpSession.makeHeaders);
-            p.addParameter('ApiArgs', obj.ApiArgs, @HttpSession.makeQParams);
+            p.addParameter('HOptions', obj.HOptions, @HttpCall.makeHOptions);
+            p.addParameter('Headers', obj.Headers, @HttpCall.makeHeaders);
+            p.addParameter('ApiArgs', MWClient.DefaultApiArgs, @HttpCall.makeQParams);
             
             p.parse(vcell{:});
             kvpairs = p.Results;
@@ -117,6 +115,10 @@ classdef MWClient < handle
             end
         end
         
+        
+        function addUserAgentRequestFilter(obj, call)
+            call.request.addFields('User-Agent', obj.UserAgent);
+        end
         
         function appendHistory(obj, hist)
             obj.History = [obj.History hist];
@@ -137,7 +139,7 @@ classdef MWClient < handle
             apiargs.meta = 'tokens';
             apiargs.type = type;
 
-            response = obj.callApi([], [], apiargs);
+            response = obj.callApi(apiargs);
             token = response.Body.Data.query.tokens.([type 'token']);
         end
         
@@ -152,13 +154,14 @@ classdef MWClient < handle
             
             narginchk(3, 3);
             
-            apiargs.lgtoken = obj.newTokenImpl('login');
-            apiargs.action = 'login';
-            apiargs.lgdomain = ''; 
-            apiargs.lgname = user;
-            apiargs.lgpassword = pswd; 
+            uriargs.action = 'login';
+            uriargs.lgdomain = ''; 
+            uriargs.lgname = user;
             
-            response = obj.callApi([], [], apiargs);
+            postargs.lgtoken = obj.newTokenImpl('login');
+            postargs.lgpassword = pswd; 
+            
+            response = obj.callApi(uriargs, [], [], postargs);
             login = response.Body.Data.login;
             
             if ~strcmp(login.result, 'Success')
@@ -186,40 +189,47 @@ classdef MWClient < handle
             %               If empty, a new one is instanciated.
             % * HOptions:  	matlab.net.http.HttpOptions | makeOptions(<any>)
             % * Headers:  	matlab.net.http.HeaderField | makeHeaders(<any>)
-            % * ApiArgs:  	HttpSession.makeQParams(<any>)
-            
+            % * ApiArgs:  	HttpCall.makeQParams(<any>)
+            %               Params always included in the uri by `callApi()`.
+            %               WARN: changing any of (json, formatversion, errorformat) 
+            %               will invalidate the error-handling of responses in `callApi()`!
             kvpairs = obj.parseArgs(varargin);
             obj.ApiUri = ApiUrl;
-            obj.Session = kvpairs.Session;
+            obj.ApiUri.Query = [obj.ApiUri.Query kvpairs.ApiArgs];
             obj.HOptions = kvpairs.HOptions;
             obj.Headers = kvpairs.Headers;
-            obj.ApiArgs = kvpairs.ApiArgs;
-        end
 
+            obj.Session = kvpairs.Session;
+            s = obj.Session;
+            obj.Pipe = HttpPipe(...
+                { @s.sessionRequestFilter @obj.addUserAgentRequestFilter}, ...
+                { @HttpPipe.assertHttpOkResponseFilter, @s.sessionResponseFilter });
+        end
+        
         
         function set.ApiUri(obj, val)
-            obj.ApiUri = matlab.net.URI(val);
+            if ~isa(val, 'matlab.net.URI')
+                val = matlab.net.URI(val);
+            end
+            obj.ApiUri = val;
             assert(~any(cellfun(@isempty, {obj.ApiUri.Host, obj.ApiUri.Scheme})), ...
                 'ApiUrl(%s) missing host or scheme!', obj.ApiUri);
         end
+        function set.HOptions(obj, val)
+            obj.HOptions = HttpCall.makeHOptions(val);
+        end
+        function set.Headers(obj, val)
+            obj.Headers = HttpCall.makeHeaders(val);
+        end
+        
         function set.Session(obj, val)
             if isempty(val)
                 val = HttpSession();
             end
-            assert(isa(val, 'HttpSession') && ~isempty(val), ...
-                'Expected a non-empty `HttpSession`, got `%s`: %s!', class(val), val);
+            validateattributes(val, {'HttpSession'}, {'scalar', 'nonempty'}, ...
+                'mfilename', 'session');
             obj.Session = val;
         end
-        function set.HOptions(obj, val)
-            obj.HOptions = HttpSession.makeHOptions(val);
-        end
-        function set.Headers(obj, val)
-            obj.Headers = HttpSession.makeHeaders(val);
-        end
-        function set.ApiArgs(obj, val)
-            obj.ApiArgs = HttpSession.makeQParams(val);
-        end
-        
         
         function cookies = get.Cookies(obj)
             % Fetches stored cookies from the session.
@@ -244,17 +254,21 @@ classdef MWClient < handle
         end
         
         
-        function response = callApi(obj, varargin)
+        function response = callApi(obj, uriargs, varargin)
             % The HTTP-Gateway with MW-error handling, preserving the response for examination.
             %
             % SYNTAX:
-            %   response = callApi(obj, method, headers, body, hoptions)
+            %   response = callApi(obj, uriargs, method, headers, body, hoptions, reqf, respf)
             % INPUT:
-            % * method:   (optional) default: GET if `body` is empty, POST otherwise.
-            % * headers:  (optional) matlab.net.http.HeaderField | makeHeaders(<any>)
-            % * body:     (optional) matlab.net.http.MessageBody | makeQParams(<any>)
-            % * hoptions: (optional) matlab.net.http.HttpOptions | makeHOptions(<any>)
+            % * uriargs:    (optional) makeQParams(<any>)
+            %               Overlayed on top of any existing in the URI.
+            % * method:     (optional) default: GET if `body` is empty, POST otherwise.
+            % * headers:    (optional) matlab.net.http.HeaderField | makeHeaders(<any>)
+            % * body:       (optional) matlab.net.http.MessageBody | makeQParams(<any>)
+            % * hoptions:   (optional) matlab.net.http.HttpOptions | makeHOptions(<any>)
             %       if empty, defaults to `obj.HOptions` - not HttpOptions () empty-costructor.
+            %   reqFilters: (optional) cellarray of @func(HttpCall) | {}
+            %   respFilters:(optional) cellarray of @func(HttpCall)) | {}
             % OUTPUT
             % * response: matlab.net.http.ResponseMessage
             % THROWS:
@@ -268,12 +282,17 @@ classdef MWClient < handle
             %
             %       MException.last.Datum
 
-            narginchk(1, 4);
+            narginchk(1, 8);
             
             uri = obj.ApiUri;
-            uri.Query = [ obj.ApiArgs uri.Query ];
+            if exist('uriargs', 'var') && ~isempty(uriargs)
+                uri.Query = [ obj.ApiUri.Query  HttpCall.makeQParams(uriargs) ];
+            end 
+            
+            call = HttpCall(uri, varargin{1:min(end, 4)});
+            
+            [response, history] = obj.Pipe.doCall(call);
 
-            [response, history] = obj.Session.sendParams(uri, varargin{:});
             obj.appendHistory(history);
             
             result = response.Body.Data;
@@ -376,7 +395,7 @@ classdef MWClient < handle
             %apiargs.callApi_version = '3';  % results as json-list on smw-v3.+
             
             obj.History = [];
-            response = obj.callApi([], [], apiargs);
+            response = obj.callApi(apiargs);
             
             results = response.Body.Data.query.results;
         end
