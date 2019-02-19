@@ -19,13 +19,13 @@ classdef MWError < MException
             
             hc = matlab.unittest.diagnostics.ConstraintDiagnostic.getDisplayableString(call);
             try
-                method = call.request.Method;
+                method = call.Request.Method;
             catch
                 method = '<method>';
             end
             obj@MException(identifier, ...
                 '%s\n\n+ Related HttpCall (currently at MException.last.HCall):\n  %s(%s))\n%s', ...
-                sprintf(message, varargin{:}), string(method), string(call.uri), hc);
+                sprintf(message, varargin{:}), string(method), string(call.Uri), hc);
             obj.HCall = call;
         end
     end

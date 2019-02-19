@@ -100,10 +100,10 @@ classdef HttpPipeline < handle
                 f{1}(call);
             end
             
-            [response, completedRequest, history] = call.request.send(call.uri, call.options);
-            call.response = response;
-            call.request = completedRequest;
-            call.history = history;
+            [response, completedRequest, history] = call.Request.send(call.Uri, call.HOptions);
+            call.Response = response;
+            call.Request = completedRequest;
+            call.History = history;
             
             for f = obj.RespHandlers
                 f{1}(call);
@@ -123,8 +123,8 @@ classdef HttpPipeline < handle
             % RAISE:
             %   DatumEx: last response's Status != OK; the Datum contains the original response.
 
-            if call.response.StatusCode ~= matlab.net.http.StatusCode.OK
-                response = call.response;
+            response = call.Response;
+            if response.StatusCode ~= matlab.net.http.StatusCode.OK
                 MWError(call, ...
                     sprintf('HttpError:%s', response.StatusCode), ...
                     '%s(%d) \n\n%s', ...

@@ -1,5 +1,5 @@
 classdef HttpCall < handle
-    % Matlab's builtin-types converted as HTTP objects that pass through HttpPipeline handlers.
+    % Convert matlab's builtin-types as HTTP objects, and together pass through HttpPipeline handlers.
     %
     % EXAMPLE:
     %
@@ -24,24 +24,28 @@ classdef HttpCall < handle
     % You may obtain a copy of the Licence at: http://ec.europa.eu/idabc/eupl
 
     properties
-        uri         % string | matlab.net.URI
-        request     % matlab.net.http.RequestMessage
-        options     % optional) matlab.net.http.HttpOptions | makeOptions(<any>)
-        response	% matlab.net.http.ResponseMessage
-        history     % matlab.net.http.LogRecord
+        Uri         % string | matlab.net.URI
+        Request     % matlab.net.http.RequestMessage
+        HOptions     % optional) matlab.net.http.HTTPOptions | HttpCall.makeHOptions(<any>)
+        Response	% matlab.net.http.ResponseMessage
+        History     % matlab.net.http.LogRecord
     end
 
     methods
-        function obj = HttpCall(uri, method, headers, body, options)
+        function obj = HttpCall(varargin)
             % Convert matlab builtin-types into objects for HTTP-request.
             %
-            % INPUT:
-            %   uri:        string | matlab.net.URI
-            %   method:     (optional) default: GET if `body` is empty, POST otherwise.
-            %   headers:    (optional) matlab.net.http.HeaderField | makeHeaders(<any>)
-            %   body:       (optional) matlab.net.http.MessageBody | makeQParams(<any>)
-            %   options:    (optional) matlab.net.http.HttpOptions | makeOptions(<any>)
-            %               if empty, defaults to HttpOptions () empty-costructor.
+            % SYNTAX:
+            %   HttpCall(kname1, kvalue1, ...)
+            % KWPAIRS:
+            %   Uri:        (optional) HttpCall.makeUri(<any>)
+            %   UriArgs:    (optional) HttpCall.makeQParams(<any>)
+            %   Method:     (optional) makeHeaders(<any>)
+            %               default: GET if `body` is empty, POST otherwise.
+            %   Headers:    (optional) matlab.net.http.HeaderField | HttpCall.makeHeaders(<any>)
+            %   Body:       (optional) matlab.net.http.MessageBody | HttpCall.makeQParams(<any>)
+            %   HOptions:    (optional) matlab.net.http.HTTPOptions | HttpCall.makeHOptions(<any>)
+            %               if empty, defaults to HttpOptions() empty-costructor.
             % NOTES:
             % * A struct or QueryParameters as body are POSTed as urlencoded-form-params,
             %   unless ContentType header has already been se by user.
@@ -58,89 +62,84 @@ classdef HttpCall < handle
                 error('Matlab 9.1 (R2016b) or higher required for HTTP support with cookies.');
             end
 
-            obj.uri = uri;
-            
-            if exist('options', 'var')
-                obj.options = HttpCall.makeHOptions(options);
-            end
-            
-            if ~exist('headers', 'var') || isempty(headers)
-                headers = [];
-            else
-                headers = HttpCall.makeHeaders(headers);
-            end
-            
-            if ~exist('body', 'var') || isempty(body)
-                body = [];
-            else
-                if ~isa(body, 'matlab.net.http.MessageBody')
-                    body = HttpCall.makeQParams(body);
-                    % body now a matlab.net.QueryParameter
+            p = HttpCall.inputParser();
+            p.parse(varargin{:});
+            r = HttpCall.procParserResults(p.Results);
 
-                    if verLessThan('matlab', '9.4')
-                        % TODO: UNTESTED CODE in MATLAB versions < R2017a.
-                        %
-                        % In MATLAB < R2017a, passing a QueryParameter body did not trigger 
-                        % payload to be populated as "x-www-form-urlencoded", bc this media-type
-                        % were not properly registered yet - "application/json" were used instead.
-                        %
-                        % So we set body's payload and ContentType explicitly.
-
-                        % No UTF8 needed since urlencoded.
-                        bodyBytes = unicode2native(string(body), 'ASCII');
-                        body = matlab.net.http.MessageBody();
-                        body.Payload = bodyBytes;
-                        
-                        % Allow user to override ContentType.
-                        %
-                        if isempty(headers.getFields(matlab.net.http.field.ContentTypeField))
-                            ctf = matlab.net.http.field.ContentTypeField("application/x-www-form-urlencoded");
-                            headers = headers.addFields(ctf);
-                        end
-                    end
-                end
-            end
-            
-            if ~exist('method', 'var') || isempty(method)
-                if isempty(body)
-                    method = 'GET';
-                else
-                    method = 'POST';
-                end
-            end
-
-            obj.request = matlab.net.http.RequestMessage(method, headers, body);
-
+            obj.Uri = r.Uri;
+            obj.HOptions = r.HOptions;
+            obj.Request = matlab.net.http.RequestMessage(r.Method, r.Headers, r.Body);
         end
         
-        function set.uri(obj, v)
-            if ~isa(v, 'matlab.net.URI')
-                v = matlab.net.URI(v);
-            end
-            obj.uri = v;
+        function set.Uri(obj, v)
+            obj.Uri = HttpCall.makeUri(v);
         end
-        function set.request(obj, v)
+        function set.Request(obj, v)
             validateattributes(v, {'matlab.net.http.RequestMessage'}, {'scalar', 'nonempty'}, ...
-                mfilename, 'request');
-            obj.request = v;
+                mfilename, 'Request');
+            obj.Request = v;
         end
-        function set.options(obj, v)
-            obj.options = HttpCall.makeHOptions(v);
+        function set.HOptions(obj, v)
+            obj.HOptions = HttpCall.makeHOptions(v);
         end
-        function set.response(obj, v)
+        function set.Response(obj, v)
             validateattributes(v, {'matlab.net.http.ResponseMessage'}, {'scalar', 'nonempty'}, ...
-                mfilename, 'response');
-            obj.response = v;
+                mfilename, 'Response');
+            obj.Response = v;
         end
-        function set.history(obj, v)
+        function set.History(obj, v)
             validateattributes(v, {'matlab.net.http.LogRecord'}, {'scalar', 'nonempty'}, ...
-                mfilename, 'history');
-            obj.history = v;
+                mfilename, 'History');
+            obj.History = v;
+        end
+        
+        function addUriArgs(obj, v, varargin)
+            % Appends at the end (or at rthe begining) the given elements
+            %
+            % SYNTAX:
+            %   addUriArgs(obj, elements [,  prepend ])
+            % INPUT:
+            %   prepend:    (optional) tf
+            %               when true, inserts elements at the beggining.
+            a = obj.Uri.Query;
+            b = HttpCall.makeUri(v);
+            obj.Uri.Query = prepend(a, b, varargin{:});
+        end
+        function addHeaders(obj, v, varargin)
+            % Like HttpCall.addUriArgs
+            a = obj.Request.Headers;
+            b = HttpCall.makeHeaders(v);
+            obj.Request.Headers = prepend(a, b, varargin{:});
         end
     end
     
     
     methods (Static)
+        function arg = makeUri(arg)
+            % Utility to convert matlab builtin types into HTTP objects.
+            %
+            % INPUT:
+            %   arg:    matlab.net.http.URI | str
+            %           It MUST contain 
+            if ~isa(arg, 'matlab.net.URI')
+                arg = matlab.net.URI(arg);
+            end
+            assert(~any(cellfun(@isempty, {arg.Host, arg.Scheme, arg.Path})), ...
+                'missing scheme, host or path!');
+        end
+
+        function method = makeMethod(arg)
+            % Utility to convert matlab builtin types into HTTP objects.
+            %
+            % INPUT:
+            %   arg:    matlab.net.http.(RequestMethod, RequestLine) | str | []
+            %           NOTE that it allows empties, to be resolved when request has (or not) a body.
+            
+            if ~isempty(arg) && ~isa(arg, 'matlab.net.http.RequestMethod') && ~isa(arg, 'matlab.net.http.RequestLine')
+                method = matlab.net.http.RequestMethod(arg);
+            end
+        end
+
         function headers = makeHeaders(arg)
             % Utility to convert matlab builtin types into HTTP objects.
             %
@@ -229,6 +228,117 @@ classdef HttpCall < handle
             else
                 params = matlab.net.http.HTTPOptions(arg);
             end
+            assert(isscalar(arg), 'Expected HOptions to be a scalar! \n  was: %s', ...
+                matlab.unittest.diagnostics.ConstraintDiagnostic.getDisplayableString(arg));
         end
-    end        
+    
+        function parser = inputParser()
+            % Accept _detailed_ kv-pairs to construct HttpCall.
+            %
+            % KV-PAIRS ACCEPTED:
+            %   HOptions, UriArgs, Headers, BodyArgs
+            % RETURN:
+            % 	inputParser 
+            % WARN: 
+            % BETTER use `HttpCall.procParserResults` on its results 
+            % (the HttpCall constructor does that).
+            % EXAMPLE
+            %   p = HttpCall.inputParser();
+            %   p.parse(...);
+            %   r = HttpCall.procParserResults(p.Results);
+            %   r.Method  % never empty.
+            %
+            % TIP:
+            % Prefer simply using the `HttpCall` constructor.
+            
+            persistent p
+            if isempty(p)
+                p = inputParser;
+                p.addParameter('Uri', '', @HttpCall.makeUri);
+                p.addParameter('UriArgs', [], @HttpCall.makeQParams);
+                p.addParameter('Method', []);
+                p.addParameter('Headers', [], @HttpCall.makeHeaders);
+                p.addParameter('Body', []);  % TODO: detect content-providers?
+                p.addParameter('HOptions', [], @HttpCall.makeHOptions);
+            end
+            parser = p;
+        end
+        
+        function results = procParserResults(parser)
+            % Post-process `parser.Results` of `HttpCall.inputParser()` to apply complex-logic.
+            %
+            % POST-PROCESS:
+            % * UriArgs overlayed on Uri
+            % * empty Method --> Get | POST (if body is empty)
+            % * Body/Headers: Matlab < 9.4 code for "application/x-www-form-urlencoded"
+            % * empty Method --> Get | POST (if body is empty).
+            %
+            % TIP:
+            % Prefer simply using the `HttpCall` constructor.
+            % NOTE:
+            % 
+            
+            results = parser.Results;
+
+            if ~isempty(results.UriArgs)
+                results.Uri.Query = [ uri.Query  results.UriArgs ];
+            end
+            
+            body = results.Body;
+            
+            if any(strcmp(parser.UsingDefaults, 'Method'))
+                if isempty(body)
+                    method = 'GET';
+                else
+                    method = 'POST';
+                end
+                results.Method = matlab.net.http.RequestMethod(method);
+            end
+            
+            headers = results.Headers;
+
+            if ~exist('body', 'var') || isempty(body)
+                body = [];
+            else
+                if ~isa(body, 'matlab.net.http.MessageBody')
+                    body = HttpCall.makeQParams(body);
+                    % body now a matlab.net.QueryParameter
+
+                    if verLessThan('matlab', '9.4')
+                        % TODO: UNTESTED CODE in MATLAB versions < R2017a.
+                        %
+                        % In MATLAB < R2017a, passing a QueryParameter body did not trigger 
+                        % payload to be populated as "x-www-form-urlencoded", bc this media-type
+                        % were not properly registered yet - "application/json" were used instead.
+                        %
+                        % So we set body's payload and ContentType explicitly.
+
+                        % No UTF8 needed since urlencoded.
+                        bodyBytes = unicode2native(string(body), 'ASCII');
+                        body = matlab.net.http.MessageBody();
+                        body.Payload = bodyBytes;
+                        
+                        % Allow user to override ContentType.
+                        %
+                        if isempty(headers.getFields(matlab.net.http.field.ContentTypeField))
+                            ctf = matlab.net.http.field.ContentTypeField("application/x-www-form-urlencoded");
+                            headers = headers.addFields(ctf);
+                        end
+                    end
+                end
+            end
+            results.Headers = headers;
+            results.Body = body;
+        end
+    end
+end
+
+
+function merged = prepend(a, b, tf)
+    if exist('tf', 'var') && logical(tf)
+        tmp = a;
+        a = b;
+        b = tmp;
+    end
+    merged = [a b];
 end

@@ -73,8 +73,8 @@ classdef HttpSession < handle
             % * Request-handler for `HttpPipeline`.
             % * Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
         
-            uri = httpcall.uri;
-            request = httpcall.request;
+            uri = httpcall.Uri;
+            request = httpcall.Request;
             
             host = uri.Host;
             try
@@ -83,12 +83,12 @@ classdef HttpSession < handle
                 if ~isempty(info.uri)
                     % If it has a uri field, it means redirected previously,
                     % so replace requested URI with redirected one.
-                    httpcall.uri = info.uri;
+                    httpcall.Uri = info.uri;
                 end
                 if ~isempty(info.cookies)
                     % If it has cookies, it means we previously received cookies from this host.
                     % Add Cookie header field containing all of them.
-                    httpcall.request = request.addFields(matlab.net.http.field.CookieField(info.cookies));
+                    httpcall.Request = request.addFields(matlab.net.http.field.CookieField(info.cookies));
                 end
             catch
                 % no previous redirect or cookies for this host
@@ -106,12 +106,12 @@ classdef HttpSession < handle
             % * Respone-handler for `HttpPipeline`.
             % * Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
 
-            if httpcall.response.StatusCode ~= matlab.net.http.StatusCode.OK
+            if httpcall.Response.StatusCode ~= matlab.net.http.StatusCode.OK
                 return
             end
             
-            uri = httpcall.uri; 
-            history = httpcall.history;
+            uri = httpcall.Uri; 
+            history = httpcall.History;
             
             host = uri.Host;
             try

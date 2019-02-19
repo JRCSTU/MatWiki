@@ -53,7 +53,7 @@ classdef MWSite < handle
         % Class-wide params always included in the uri by `callApi()`.
         % WARN: changing any of (json, formatversion, errorformat) 
         % will invalidate the error-handling of responses in `callApi()`!
-        DefaultApiArgs = {'format', 'json', 'formatversion', 2, 'errorformat', 'plaintext'};
+        DefaultUriArgs = {'format', 'json', 'formatversion', 2, 'errorformat', 'plaintext'};
     end
     
     properties (SetAccess=protected, AbortSet=true)
@@ -96,17 +96,21 @@ classdef MWSite < handle
             %
             % INPUT:
             %   vcell: from `varargin` containing the following kv-pairs.
-            % KV-PAIRS ACCEPTED:
-            %   Session, HOptions, Headers, ApiArgs
+            % KV-PAIRS:
+            %   Session, HOptions, Headers, UriArgs
+            %       are all defaults, prepended for all api-calls.
             % RETURN:
             % the struct from `inputPraser.Results`
             %
             % If empty-session given, instanciates a new one.
-            p = inputParser;
+            p = inputParser();
             p.addParameter('Session', [], @(x) isempty(x) || isa(x, 'HttpSession'));
             p.addParameter('HOptions', obj.HOptions, @HttpCall.makeHOptions);
             p.addParameter('Headers', obj.Headers, @HttpCall.makeHeaders);
-            p.addParameter('ApiArgs', MWSite.DefaultApiArgs, @HttpCall.makeQParams);
+            p.addParameter('UriArgs', MWSite.DefaultUriArgs, @HttpCall.makeQParams);
+            p.addParameter('UserAgent', '', ...
+                @(x) validateattributes(x, {'char', 'string'}, {'scalar'}, ...
+                mfilename, 'UserAgent'));
             
             p.parse(vcell{:});
             kvpairs = p.Results;
@@ -117,8 +121,8 @@ classdef MWSite < handle
         
         
         function addUserAgentRequestHandler(obj, call)
-            if isempty(call.request.getFields('User-Agent'))
-                call.request = call.request.addFields('User-Agent', obj.UserAgent);
+            if isempty(call.Request.getFields('User-Agent'))
+                call.addHeaders({'User-Agent', obj.UserAgent});
             end
         end
         
@@ -137,12 +141,12 @@ classdef MWSite < handle
             % TODO:
             % * Cache tokens.
             
-            apiargs.action = 'query';
-            apiargs.meta = 'tokens';
-            apiargs.type = type;
+            uriargs.action = 'query';
+            uriargs.meta = 'tokens';
+            uriargs.type = type;
 
-            call = obj.callApi(apiargs);
-            token = call.response.Body.Data.query.tokens.([type 'token']);
+            call = obj.callApi('UriArgs', uriargs);
+            token = call.Response.Body.Data.query.tokens.([type 'token']);
         end
         
             
@@ -163,8 +167,8 @@ classdef MWSite < handle
             postargs.lgtoken = obj.newTokenImpl('login');
             postargs.lgpassword = pswd; 
             
-            call = obj.callApi(uriargs, [], [], postargs);
-            login = call.response.Body.Data.login;
+            call = obj.callApi('UriArgs', uriargs, 'Body', postargs);
+            login = call.Response.Body.Data.login;
             
             if ~strcmp(login.result, 'Success')
                 MWError(call, 'MWSite:loginDenied', ...
@@ -189,17 +193,23 @@ classdef MWSite < handle
             %
             % * Session:  	HttpSession
             %               If empty, a new one is instanciated.
-            % * HOptions:  	matlab.net.http.HttpOptions | makeOptions(<any>)
+            % * HOptions:  	matlab.net.http.HTTPOptions | makeOptions(<any>)
             % * Headers:  	matlab.net.http.HeaderField | makeHeaders(<any>)
-            % * ApiArgs:  	HttpCall.makeQParams(<any>)
+            % * UriArgs:  	HttpCall.makeQParams(<any>)
             %               Params always included in the uri by `callApi()`.
             %               WARN: changing any of (json, formatversion, errorformat) 
             %               will invalidate the error-handling of responses in `callApi()`!
+            % * UserAgent:  (optional) str | ''
+            %               Prepended in default `MWSite.UserAgent`
             kvpairs = obj.parseArgs(varargin);
             obj.ApiUri = ApiUrl;
-            obj.ApiUri.Query = [obj.ApiUri.Query kvpairs.ApiArgs];
+            obj.ApiUri.Query = [obj.ApiUri.Query kvpairs.UriArgs];
             obj.HOptions = kvpairs.HOptions;
             obj.Headers = kvpairs.Headers;
+            ua = kvpairs.UserAgent;
+            if ~isempty(ua)
+                obj.UserAgent = [ obj.UserAgent char(ua) ];
+            end
 
             obj.Session = kvpairs.Session;
             s = obj.Session;
@@ -210,12 +220,7 @@ classdef MWSite < handle
         
         
         function set.ApiUri(obj, val)
-            if ~isa(val, 'matlab.net.URI')
-                val = matlab.net.URI(val);
-            end
-            obj.ApiUri = val;
-            assert(~any(cellfun(@isempty, {obj.ApiUri.Host, obj.ApiUri.Scheme})), ...
-                'ApiUrl(%s) missing host or scheme!', obj.ApiUri);
+            obj.ApiUri = HttpCall.makeUri(val);
         end
         function set.HOptions(obj, val)
             obj.HOptions = HttpCall.makeHOptions(val);
@@ -256,23 +261,23 @@ classdef MWSite < handle
         end
         
         
-        function call = callApi(obj, uriargs, varargin)
+        function call = callApi(obj, varargin)
             % The HTTP-Gateway with MW-error handling, preserving the response for examination.
             %
             % SYNTAX:
-            %   response = callApi(obj, uriargs, method, headers, body, hoptions, reqf, respf)
-            % INPUT:
-            % * uriargs:    (optional) makeQParams(<any>)
-            %               Overlayed on top of any existing in the URI.
-            % * method:     (optional) default: GET if `body` is empty, POST otherwise.
-            % * headers:    (optional) matlab.net.http.HeaderField | makeHeaders(<any>)
-            % * body:       (optional) matlab.net.http.MessageBody | makeQParams(<any>)
-            % * hoptions:   (optional) matlab.net.http.HttpOptions | makeHOptions(<any>)
-            %       if empty, defaults to `obj.HOptions` - not HttpOptions () empty-costructor.
-            %   reqHandlers: (optional) cellarray of @func(HttpCall) | {}
-            %   respHandlers:(optional) cellarray of @func(HttpCall)) | {}
+            %   response = callApi(obj, kname, kvalue, ...)
+            % KVPAIRS:
+            % From HttpCall():
+            %   Uri:        (optional) HttpCall.makeUri(<any>)
+            %   UriArgs:    (optional) HttpCall.makeQParams(<any>)
+            %   Method:     (optional) makeHeaders(<any>)
+            %               default: GET if `body` is empty, POST otherwise.
+            %   Headers:    (optional) matlab.net.http.HeaderField | HttpCall.makeHeaders(<any>)
+            %   Body:       (optional) matlab.net.http.MessageBody | HttpCall.makeQParams(<any>)
+            %   HOptions:    (optional) matlab.net.http.HTTPOptions | HttpCall.makeHOptions(<any>)
+            %               if empty, defaults to HttpOptions() empty-costructor.
             % OUTPUT
-            % * call: HttpCall
+            %   call: HttpCall
             % THROWS:
             % * DatumEx: the Datum contains the original response.
             % * Other http-errors.
@@ -284,17 +289,12 @@ classdef MWSite < handle
             %
             %       MException.last.Datum
 
-            narginchk(1, 8);
-            
-            uri = obj.ApiUri;
-            if exist('uriargs', 'var') && ~isempty(uriargs)
-                uri.Query = [ obj.ApiUri.Query  HttpCall.makeQParams(uriargs) ];
-            end 
-            
-            call = HttpCall(uri, varargin{1:min(end, 4)});
-            if isempty(call.options)  % TODO: UNIFY API PARSING!
-                call.options = obj.HOptions;
-            end
+            call = HttpCall(...
+                'Uri', obj.ApiUri, ...
+                'UriArgs', obj.DefaultUriArgs, ...
+                'HOptions', obj.HOptions, ...
+                'Headers', obj.Headers, ...
+                varargin{:});
             
             [response, history] = obj.Pipeline.doCall(call);
 
@@ -394,17 +394,17 @@ classdef MWSite < handle
                 parameters = '';
             end
             
-            apiargs.action = 'askargs';
-            %apiargs.callApi_version = '3';  % results as json-list on smw-v3.+
+            uriargs.action = 'askargs';
+            %uriargs.callApi_version = '3';  % results as json-list on smw-v3.+
             
             postargs.conditions = join_cellstr(conditions, '|', 'conditions');
             postargs.printouts = join_cellstr(printouts, '|', 'printouts');
             postargs.parameters = join_cellstr(parameters, '|', 'parameters');
             
             obj.History = [];
-            call = obj.callApi(apiargs, [], [], postargs);
+            call = obj.callApi('UriArgs', uriargs, 'Body', postargs);
             
-            results = call.response.Body.Data.query.results;
+            results = call.Response.Body.Data.query.results;
         end
     end
     

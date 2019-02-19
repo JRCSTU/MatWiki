@@ -10,7 +10,7 @@
 % * <HttpSession> has been implemented as handlers.
 % 
 %% Classes
-%   HttpCall     - Matlab's builtin-types converted as HTTP objects that pass through HttpPipeline handlers.
+%   HttpCall     - Convert matlab's builtin-types as HTTP objects, and together pass through HttpPipeline handlers.
 %   HttpPipeline - Apply "handlers" on HttpCall before & after the request/response operation.
 %   HttpSession  - HttpPipeline handlers for storing redirects & cookies from requests.
 %   MWError      - An exception that keeps the HttpCall related to the cause of the error.
@@ -21,5 +21,6 @@
 %   README.md   - Project's documentation & home page.
 %   LICENSE.txt - Project's License (EUPL 1.2).
 %   Contents.mt - this file
+
 
 
