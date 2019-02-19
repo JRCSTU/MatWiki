@@ -73,7 +73,7 @@ classdef MWSite < handle
 
         % matlab.net.http.HeaderField:
         %   HTTP-headers prepended to all HTTP-requests.
-        Headers
+        Header
 
         % matlab.net.http.LogRecord:
         %   For DEBUGGING, the http-conversation for the last high-level method called.
@@ -97,17 +97,21 @@ classdef MWSite < handle
             % INPUT:
             %   vcell: from `varargin` containing the following kv-pairs.
             % KV-PAIRS:
-            %   Session, HOptions, Headers, UriArgs
+            %   Session, HOptions, Header, UriArgs
             %       are all defaults, prepended for all api-calls.
             % RETURN:
             % the struct from `inputPraser.Results`
             %
             % If empty-session given, instanciates a new one.
             p = inputParser();
-            p.addParameter('Session', [], @(x) isempty(x) || isa(x, 'HttpSession'));
-            p.addParameter('HOptions', obj.HOptions, @HttpCall.makeHOptions);
-            p.addParameter('Headers', obj.Headers, @HttpCall.makeHeaders);
-            p.addParameter('UriArgs', MWSite.DefaultUriArgs, @HttpCall.makeQParams);
+            p.addParameter('Session', [], ...
+                @(x) isempty(x) || isa(x, 'HttpSession'));
+            p.addParameter('HOptions', obj.HOptions, ...
+                @(x) isempty(HttpCall.makeHOptions(x)) || true);
+            p.addParameter('Header', obj.Header, ...
+                @(x) isempty(HttpCall.makeHeader(x)) || true);
+            p.addParameter('UriArgs', MWSite.DefaultUriArgs, ...
+                @(x) isempty(HttpCall.makeQParams) || true);
             p.addParameter('UserAgent', '', ...
                 @(x) validateattributes(x, {'char', 'string'}, {'scalar'}, ...
                 mfilename, 'UserAgent'));
@@ -122,7 +126,7 @@ classdef MWSite < handle
         
         function addUserAgentRequestHandler(obj, call)
             if isempty(call.Request.getFields('User-Agent'))
-                call.addHeaders({'User-Agent', obj.UserAgent});
+                call.addHeader({'User-Agent', obj.UserAgent});
             end
         end
         
@@ -194,7 +198,7 @@ classdef MWSite < handle
             % * Session:  	HttpSession
             %               If empty, a new one is instanciated.
             % * HOptions:  	matlab.net.http.HTTPOptions | makeOptions(<any>)
-            % * Headers:  	matlab.net.http.HeaderField | makeHeaders(<any>)
+            % * Header:  	matlab.net.http.HeaderField | makeHeader(<any>)
             % * UriArgs:  	HttpCall.makeQParams(<any>)
             %               Params always included in the uri by `callApi()`.
             %               WARN: changing any of (json, formatversion, errorformat) 
@@ -205,7 +209,7 @@ classdef MWSite < handle
             obj.ApiUri = ApiUrl;
             obj.ApiUri.Query = [obj.ApiUri.Query kvpairs.UriArgs];
             obj.HOptions = kvpairs.HOptions;
-            obj.Headers = kvpairs.Headers;
+            obj.Header = kvpairs.Header;
             ua = kvpairs.UserAgent;
             if ~isempty(ua)
                 obj.UserAgent = [ obj.UserAgent char(ua) ];
@@ -225,8 +229,8 @@ classdef MWSite < handle
         function set.HOptions(obj, val)
             obj.HOptions = HttpCall.makeHOptions(val);
         end
-        function set.Headers(obj, val)
-            obj.Headers = HttpCall.makeHeaders(val);
+        function set.Header(obj, val)
+            obj.Header = HttpCall.makeHeader(val);
         end
         
         function set.Session(obj, val)
@@ -270,9 +274,9 @@ classdef MWSite < handle
             % From HttpCall():
             %   Uri:        (optional) HttpCall.makeUri(<any>)
             %   UriArgs:    (optional) HttpCall.makeQParams(<any>)
-            %   Method:     (optional) makeHeaders(<any>)
+            %   Method:     (optional) makeHeader(<any>)
             %               default: GET if `body` is empty, POST otherwise.
-            %   Headers:    (optional) matlab.net.http.HeaderField | HttpCall.makeHeaders(<any>)
+            %   Header:     (optional) matlab.net.http.HeaderField | HttpCall.makeHeader(<any>)
             %   Body:       (optional) matlab.net.http.MessageBody | HttpCall.makeQParams(<any>)
             %   HOptions:    (optional) matlab.net.http.HTTPOptions | HttpCall.makeHOptions(<any>)
             %               if empty, defaults to HttpOptions() empty-costructor.
@@ -293,7 +297,7 @@ classdef MWSite < handle
                 'Uri', obj.ApiUri, ...
                 'UriArgs', obj.DefaultUriArgs, ...
                 'HOptions', obj.HOptions, ...
-                'Headers', obj.Headers, ...
+                'Header', obj.Header, ...
                 varargin{:});
             
             [response, history] = obj.Pipeline.doCall(call);

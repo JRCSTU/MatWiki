@@ -8,6 +8,7 @@
     (ala [apache axis](http://axis.apache.org/axis2/java/core/docs/userguide.html#handlessoap)).
 - UNIFY UNIFY HttpCall() + MWSite/apiCall() arg-parsing (uri, uriArgs, method, headers, body, hoptions)
   - `MWSite.apiCall()` accepts kv-pairs (see `HttpCall.inputParser` & `HttpCall` constructor).
+  - Capitalize all props, rename Heaers-->Header.
 - Refact DatumError --> MWError:
   - rename property Datum --> HttpCall.
   - store the hole call instead of just the response/request.

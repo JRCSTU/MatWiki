@@ -40,9 +40,9 @@ classdef HttpCall < handle
             % KWPAIRS:
             %   Uri:        (optional) HttpCall.makeUri(<any>)
             %   UriArgs:    (optional) HttpCall.makeQParams(<any>)
-            %   Method:     (optional) makeHeaders(<any>)
+            %   Method:     (optional) makeHeader(<any>)
             %               default: GET if `body` is empty, POST otherwise.
-            %   Headers:    (optional) matlab.net.http.HeaderField | HttpCall.makeHeaders(<any>)
+            %   Header:     (optional) matlab.net.http.HeaderField | HttpCall.makeHeader(<any>)
             %   Body:       (optional) matlab.net.http.MessageBody | HttpCall.makeQParams(<any>)
             %   HOptions:    (optional) matlab.net.http.HTTPOptions | HttpCall.makeHOptions(<any>)
             %               if empty, defaults to HttpOptions() empty-costructor.
@@ -64,11 +64,11 @@ classdef HttpCall < handle
 
             p = HttpCall.inputParser();
             p.parse(varargin{:});
-            r = HttpCall.procParserResults(p.Results);
+            r = HttpCall.procParserResults(p);
 
             obj.Uri = r.Uri;
             obj.HOptions = r.HOptions;
-            obj.Request = matlab.net.http.RequestMessage(r.Method, r.Headers, r.Body);
+            obj.Request = matlab.net.http.RequestMessage(r.Method, r.Header, r.Body);
         end
         
         function set.Uri(obj, v)
@@ -105,11 +105,11 @@ classdef HttpCall < handle
             b = HttpCall.makeUri(v);
             obj.Uri.Query = prepend(a, b, varargin{:});
         end
-        function addHeaders(obj, v, varargin)
+        function addHeader(obj, v, varargin)
             % Like HttpCall.addUriArgs
-            a = obj.Request.Headers;
-            b = HttpCall.makeHeaders(v);
-            obj.Request.Headers = prepend(a, b, varargin{:});
+            a = obj.Request.Header;
+            b = HttpCall.makeHeader(v);
+            obj.Request.Header = prepend(a, b, varargin{:});
         end
     end
     
@@ -140,7 +140,7 @@ classdef HttpCall < handle
             end
         end
 
-        function headers = makeHeaders(arg)
+        function headers = makeHeader(arg)
             % Utility to convert matlab builtin types into HTTP objects.
             %
             % INPUT:
@@ -148,16 +148,16 @@ classdef HttpCall < handle
             % OUTPUT:
             % headers: matlab.net.http.HeaderField (possibly 0x0)
             % THROWS:
-            %   MWError(arg, 'HttpCall:invalidHeadersArg')
+            %   MWError(arg, 'HttpCall:invalidHeaderArg')
             % EXAMPLES:
-            %   HttpCall.makeHeaders([]) OR ({}) OR ('')	--> 0x0 HeaderField 
-            %   HttpCall.makeHeaders('a')                --> a=
-            %   HttpCall.makeHeaders({'a'})              --> a=
-            %   HttpCall.makeHeaders(["a", "b"])         --> a=b
-            %   HttpCall.makeHeaders({'a', 2, 'c'})      --> 1x2
+            %   HttpCall.makeHeader([]) OR ({}) OR ('')	--> 0x0 HeaderField 
+            %   HttpCall.makeHeader('a')                --> a=
+            %   HttpCall.makeHeader({'a'})              --> a=
+            %   HttpCall.makeHeader(["a", "b"])         --> a=b
+            %   HttpCall.makeHeader({'a', 2, 'c'})      --> 1x2
             %   s = struct("Name", '2', 'Value', "d");
-            %   HttpCall.makeHeaders(s)                  --> 1x1
-            %   HttpCall.makeHeaders([s s])              --> 1x2
+            %   HttpCall.makeHeader(s)                  --> 1x1
+            %   HttpCall.makeHeader([s s])              --> 1x2
             % NOTE:
             % * don't create dupes!
             % * i hate matlab's type-system.
@@ -236,7 +236,7 @@ classdef HttpCall < handle
             % Accept _detailed_ kv-pairs to construct HttpCall.
             %
             % KV-PAIRS ACCEPTED:
-            %   HOptions, UriArgs, Headers, BodyArgs
+            %   HOptions, UriArgs, Header, BodyArgs
             % RETURN:
             % 	inputParser 
             % WARN: 
@@ -245,7 +245,7 @@ classdef HttpCall < handle
             % EXAMPLE
             %   p = HttpCall.inputParser();
             %   p.parse(...);
-            %   r = HttpCall.procParserResults(p.Results);
+            %   r = HttpCall.procParserResults(p);
             %   r.Method  % never empty.
             %
             % TIP:
@@ -254,12 +254,16 @@ classdef HttpCall < handle
             persistent p
             if isempty(p)
                 p = inputParser;
-                p.addParameter('Uri', '', @HttpCall.makeUri);
-                p.addParameter('UriArgs', [], @HttpCall.makeQParams);
+                p.addParameter('Uri', '', ...
+                    @(x) isempty(HttpCall.makeUri(x)) || true);
+                p.addParameter('UriArgs', [], ...
+                    @(x) isempty(HttpCall.makeQParams(x)) || true);
                 p.addParameter('Method', []);
-                p.addParameter('Headers', [], @HttpCall.makeHeaders);
+                p.addParameter('Header', [], ...
+                    @(x) isempty(HttpCall.makeHeader(x)) || true);
                 p.addParameter('Body', []);  % TODO: detect content-providers?
-                p.addParameter('HOptions', [], @HttpCall.makeHOptions);
+                p.addParameter('HOptions', [], ...
+                    @(x) isempty(HttpCall.makeHOptions(x)) || true);
             end
             parser = p;
         end
@@ -270,7 +274,7 @@ classdef HttpCall < handle
             % POST-PROCESS:
             % * UriArgs overlayed on Uri
             % * empty Method --> Get | POST (if body is empty)
-            % * Body/Headers: Matlab < 9.4 code for "application/x-www-form-urlencoded"
+            % * Body/Header: Matlab < 9.4 code for "application/x-www-form-urlencoded"
             % * empty Method --> Get | POST (if body is empty).
             %
             % TIP:
@@ -281,7 +285,7 @@ classdef HttpCall < handle
             results = parser.Results;
 
             if ~isempty(results.UriArgs)
-                results.Uri.Query = [ uri.Query  results.UriArgs ];
+                results.Uri.Query = [ results.Uri.Query  results.UriArgs ];
             end
             
             body = results.Body;
@@ -295,7 +299,7 @@ classdef HttpCall < handle
                 results.Method = matlab.net.http.RequestMethod(method);
             end
             
-            headers = results.Headers;
+            headers = results.Header;
 
             if ~exist('body', 'var') || isempty(body)
                 body = [];
@@ -327,7 +331,7 @@ classdef HttpCall < handle
                     end
                 end
             end
-            results.Headers = headers;
+            results.Header = headers;
             results.Body = body;
         end
     end
