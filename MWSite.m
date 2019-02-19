@@ -116,7 +116,7 @@ classdef MWSite < handle
         
         
         function addUserAgentRequestFilter(obj, call)
-            call.request.addFields('User-Agent', obj.UserAgent);
+            call.request = call.request.addFields('User-Agent', obj.UserAgent);
         end
         
         function appendHistory(obj, hist)
