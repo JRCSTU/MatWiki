@@ -124,10 +124,13 @@ classdef HttpPipe < handle
             %   DatumEx: last response's Status != OK; the Datum contains the original response.
 
             if call.response.StatusCode ~= matlab.net.http.StatusCode.OK
+                request = call.request;
+                response = call.response;
                 MWError(response, ...
                     sprintf('HttpError:%s', response.StatusCode), ...
                     '%s(%s): %s(%d) \n\n%s', ...
-                    method, uri, response.StatusCode, response.StatusCode, response.Body).throwAsCaller();
+                    request.Method, call.uri, ...
+                    response.StatusCode, response.StatusCode, response.Body).throwAsCaller();
             end
         end
 
