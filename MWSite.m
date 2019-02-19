@@ -116,7 +116,9 @@ classdef MWSite < handle
         
         
         function addUserAgentRequestFilter(obj, call)
-            call.request = call.request.addFields('User-Agent', obj.UserAgent);
+            if isempty(call.request.getFields('User-Agent'))
+                call.request = call.request.addFields('User-Agent', obj.UserAgent);
+            end
         end
         
         function appendHistory(obj, hist)
@@ -388,13 +390,14 @@ classdef MWSite < handle
             end
             
             apiargs.action = 'askargs';
-            apiargs.conditions = join_cellstr(conditions, '|', 'conditions');
-            apiargs.printouts = join_cellstr(printouts, '|', 'printouts');
-            apiargs.parameters = join_cellstr(parameters, '|', 'parameters');
             %apiargs.callApi_version = '3';  % results as json-list on smw-v3.+
             
+            postargs.conditions = join_cellstr(conditions, '|', 'conditions');
+            postargs.printouts = join_cellstr(printouts, '|', 'printouts');
+            postargs.parameters = join_cellstr(parameters, '|', 'parameters');
+            
             obj.History = [];
-            response = obj.callApi(apiargs);
+            response = obj.callApi(apiargs, [], [], postargs);
             
             results = response.Body.Data.query.results;
         end
