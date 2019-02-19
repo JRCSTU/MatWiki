@@ -1,5 +1,5 @@
-classdef MWClient < handle
-    % MWClient   A MediaWiki client-library.
+classdef MWSite < handle
+    % MWSite   A MediaWiki client-library.
     % Implemented mostly for semantic searches.
     %
     % REQUIRES:
@@ -14,7 +14,7 @@ classdef MWClient < handle
     %
     % EXAMPLE:
     %   >> url = 'http://some.wiki.org/wiki/api.php';
-    %   >> mw = MWClient(url).login('Ankostis@test','qu8hqc8f07se3ra05ufcn89keecpmgtk');
+    %   >> mw = MWSite(url).login('Ankostis@test','qu8hqc8f07se3ra05ufcn89keecpmgtk');
     %   >> results = mw.askargs('Category:Cars', 'Vehicle OEM', 'limit=3');
     %   >> disp(jsonencode(results))
     %       AR004: [1×1 struct]
@@ -83,7 +83,7 @@ classdef MWClient < handle
 
         % String send with a repective HTTP-header.
         % You may prefix these infos with those of your derrivative library/project.
-        UserAgent = MWClient.makeUserAgent();
+        UserAgent = MWSite.makeUserAgent();
     end
     
     properties (Dependent)
@@ -106,7 +106,7 @@ classdef MWClient < handle
             p.addParameter('Session', [], @(x) isempty(x) || isa(x, 'HttpSession'));
             p.addParameter('HOptions', obj.HOptions, @HttpCall.makeHOptions);
             p.addParameter('Headers', obj.Headers, @HttpCall.makeHeaders);
-            p.addParameter('ApiArgs', MWClient.DefaultApiArgs, @HttpCall.makeQParams);
+            p.addParameter('ApiArgs', MWSite.DefaultApiArgs, @HttpCall.makeQParams);
             
             p.parse(vcell{:});
             kvpairs = p.Results;
@@ -165,7 +165,7 @@ classdef MWClient < handle
             login = response.Body.Data.login;
             
             if ~strcmp(login.result, 'Success')
-                DatumError(response, 'MWClient:loginDenied', ...
+                DatumError(response, 'MWSite:loginDenied', ...
                     '%s: cannot login due to: %s, %s', ...
                     string(obj.ApiUri), login.result, jsonencode(login.reason)).throw();
             end
@@ -174,11 +174,11 @@ classdef MWClient < handle
     end
     
     methods
-        function obj = MWClient(ApiUrl, varargin)
+        function obj = MWSite(ApiUrl, varargin)
             % Set defaults and initiates internally a new session (if none given).
             %
             % SYNTAX:
-            %   obj = MWClient(apiUrl, [ kwarg1Name, kwarg1Value, ... ] )
+            %   obj = MWSite(apiUrl, [ kwarg1Name, kwarg1Value, ... ] )
             % INPUT:
             % * apiUrl:     |string , matlab.net.URI|
             %   e.g.: |https://www.semantic-mediawiki.org/w/api.php|
@@ -300,14 +300,14 @@ classdef MWClient < handle
             
             if isfield(result, 'errors')
                 % If req-param `formatversion!=2` this prop becomes singular: 'error'!
-                DatumError(response, 'MWClient:gotError', ...
+                DatumError(response, 'MWSite:gotError', ...
                     '%s: MediaWiki-API-Error: %s\n\n%s', ...
                     uri, strjoin({result.errors.code}, ', '), jsonencode(result.errors)).throw();
             elseif ~isempty(apiErr)
-                DatumError(response, 'MWClient:APIError', ...
+                DatumError(response, 'MWSite:APIError', ...
                     '%s: %s\n\n%s', uri, apiErr, response.Body.Data).throw();
             elseif isstring(result) && contains(result, '<title>MediaWiki API help')
-                DatumError(response, 'MWClient:gotApiHelpPage', ...
+                DatumError(response, 'MWSite:gotApiHelpPage', ...
                     '%s: returned just the API help-page! (no `action` param given?)', uri).throw();
             end
         end
@@ -414,7 +414,7 @@ classdef MWClient < handle
             m.rel = version('-release');
             m.arch = computer('arch');
             value = sprintf('MatWiki/%s (%s) %s/%s (R%s; %s)', ...
-                MWClient.Version, MWClient.ProjectHome, m.prog, m.mver, m.rel, m.arch);
+                MWSite.Version, MWSite.ProjectHome, m.prog, m.mver, m.rel, m.arch);
         end
     end
 end
