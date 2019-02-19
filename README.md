@@ -1,8 +1,8 @@
-| project    | MatWiki: A (semantic) MediaWiki client for Matlab.  |
+| project    | MatWiki: A (semantic) MediaWiki client for Matlab.      |
 |------------|---------------------------------------------------------|
-| release    | 0.1.0.dev1                                              |
-| rel_date   | 15 Feb 2019                                             |
-| home       | https://github.com/JRCSTU/MatWiki                   |
+| release    | 1.0.0.dev2                                                   |
+| rel_date   | 19 Feb 2019                                             |
+| home       | https://github.com/JRCSTU/MatWiki                       |
 | maintainer | Kostis Anagnostopoulos (ankostis@gmail.com)             |
 | license    | [EUPL 1.2](https://joinup.ec.europa.eu/collection/eupl) |
 | copyright  | [2019 European Commission](https://ec.europa.eu/jrc/)   |
