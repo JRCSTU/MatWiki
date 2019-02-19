@@ -1,5 +1,5 @@
 classdef HttpPipe < handle
-    % Convert matlab builtin-types to HTTP objects and filter them before/after HTTP request.
+    % Apply "filters" on HttpCall before & after the request/response operation.
     %
     % EXAMPLE:
     %

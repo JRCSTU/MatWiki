@@ -1,6 +1,7 @@
 classdef MWSite < handle
-    % MWSite   A MediaWiki client-library.
-    % Implemented mostly for semantic searches.
+    % The MediaWiki client endpoint.
+    %
+    % Currently implemented mostly for semantic searches.
     %
     % REQUIRES:
     % MATLAB *R2016b*(9.1.x) or higher, for string-vectors & proper HTTP support 
@@ -439,3 +440,4 @@ function joined = join_cellstr(c, delim, errlabel)
         error('Expected string or cellstr for `%s`, was %s: %s', errlabel, class(c), c);
     end
 end
+

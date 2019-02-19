@@ -18,7 +18,9 @@ As of Feb 2019, it is in a very early stage, just ~4 days of work:
   - Allow bots to login.
   - run `#ask` semantic-queries.
   - Rudimentary error-handling.
-  - Respects WP's UserAgent policy.
+  - Respects some of WP's UserAgent policies (Valid UserAgent, Easy to Debug).
+  - Http calls pass through pipelines of filters, to allow for extending without inheriting
+   (influened by [apache axis](http://axis.apache.org/axis2/java/core/docs/userguide.html#handlessoap)).
 - Not tested for `Matlab-9.4+` (**R2018a** or higher), where HTTP support 
   for `application/x-www-form-urlencoded` were not fully there yet.
 - Lightly tested only against `MediaWiki-1.31`.

@@ -3,7 +3,7 @@
 ## 1.0.0
 - PROJECT RENAMED MatMWClient --> MatWiki
 - RENAME main class MWClient --> MWSite
-- Refactor DatumError --> MWError, iherit from HttpCall; (to contain URL, response & History).
+- Refactor DatumError --> MWError, inherit from HttpCall; (to contain URL, response & History).
 - Added User-Agent HTTP-header according to https://meta.wikimedia.org/wiki/User-Agent_policy
   eg: ``MatWiki/1.0.0-dev0 (https://github.com/JRCSTU/MatWiki) MATLAB/9.5 (R2018b; win64)``
 - REFACT: SPLIT classes across `HttpPipe`, `HttpCall`, `HttpSession`(filters) & `MwSite`,

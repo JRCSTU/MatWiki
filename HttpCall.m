@@ -1,5 +1,5 @@
 classdef HttpCall < handle
-    % Convert matlab builtin-types to HTTP objects to pass in pipe-filters.
+    % Matlab's builtin-types converted as HTTP objects that pass through HttpPipe filters.
     %
     % EXAMPLE:
     %

@@ -1,5 +1,5 @@
 classdef MWError < MException
-% An exception that keeps a "datum" related to the cause of the error.
+% An exception that keeps the HttpCall related to the cause of the error.
 %
 % Contrary to `MException()`, the var-args to the format-string can be many types.
 %
