@@ -57,8 +57,8 @@ classdef MWSite < handle
     end
     
     properties (SetAccess=protected, AbortSet=true)
-        Pipe     % HttpPipe     (nonempty)
-        Session  % HttpSession (nonempty)
+        Pipeline % HttpPipeline (nonempty)
+        Session  % HttpSession  (nonempty)
     end
     
     properties
@@ -203,9 +203,9 @@ classdef MWSite < handle
 
             obj.Session = kvpairs.Session;
             s = obj.Session;
-            obj.Pipe = HttpPipe(...
+            obj.Pipeline = HttpPipeline(...
                 { @s.sessionRequestFilter @obj.addUserAgentRequestFilter}, ...
-                { @HttpPipe.assertHttpOkResponseFilter, @s.sessionResponseFilter });
+                { @HttpPipeline.assertHttpOkResponseFilter, @s.sessionResponseFilter });
         end
         
         
@@ -293,7 +293,7 @@ classdef MWSite < handle
             
             call = HttpCall(uri, varargin{1:min(end, 4)});
             
-            [response, history] = obj.Pipe.doCall(call);
+            [response, history] = obj.Pipeline.doCall(call);
 
             obj.appendHistory(history);
             

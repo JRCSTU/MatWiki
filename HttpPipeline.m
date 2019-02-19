@@ -1,9 +1,9 @@
-classdef HttpPipe < handle
+classdef HttpPipeline < handle
     % Apply "filters" on HttpCall before & after the request/response operation.
     %
     % EXAMPLE:
     %
-    %       obj = HttpPipe();
+    %       obj = HttpPipeline();
     %
     %       % Append your own filters.
     %       %
@@ -28,7 +28,7 @@ classdef HttpPipe < handle
     end
 
     methods
-        function obj = HttpPipe(reqFilters, respFilters)
+        function obj = HttpPipeline(reqFilters, respFilters)
             % Convert matlab builtin-types into objects for HTTP-request.
             %
             % INPUT:
@@ -87,7 +87,7 @@ classdef HttpPipe < handle
             %
             % INPUT:
             %   reqstruct:  struct(scalar)
-            %               Fields from `HttpPipe.prepareHttpPipe()`:
+            %               Fields from `HttpPipeline.prepareHttpPipeline()`:
             %               uri, method, headers, body, options, reqFilters, respFilters
             % OUTPUT:
             % * response: matlab.net.http.ResponseMessage
@@ -119,7 +119,7 @@ classdef HttpPipe < handle
             % INPUT/OUTPUT:
             %   call: HttpCall
             % NOTES:
-            % * Respone-filter for `HttpPipe()`.
+            % * Respone-filter for `HttpPipeline()`.
             % RAISE:
             %   DatumEx: last response's Status != OK; the Datum contains the original response.
 

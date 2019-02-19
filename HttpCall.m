@@ -1,5 +1,5 @@
 classdef HttpCall < handle
-    % Matlab's builtin-types converted as HTTP objects that pass through HttpPipe filters.
+    % Matlab's builtin-types converted as HTTP objects that pass through HttpPipeline filters.
     %
     % EXAMPLE:
     %
@@ -7,10 +7,10 @@ classdef HttpCall < handle
     %       %
     %       reqFilters = {...}
     %       respFilters = {...};
-    %       pipe = HttpPipe(reqFilters, respFilters);
+    %       pipeline = HttpPipe(reqFilters, respFilters);
     %
     %       call = HttpCall(...);
-    %       [response, history] = pipe.doCall(call);
+    %       [response, history] = pipeline.doCall(call);
     %
     % NOTES:
     % * WARN: UNTESTED Matlab < 9.4 (< R2018a) with urlencoded parameters in the POST's body,
@@ -52,7 +52,7 @@ classdef HttpCall < handle
             %   [response, history] = HttpCall(url, [], [], {'p1', 'val1'})  % POST
             %
             % SEE ALSO
-            % * HttpPipe.doCall()
+            % * HttpPipeline.doCall()
 
             if verLessThan('matlab', '9.1')
                 error('Matlab 9.1 (R2016b) or higher required for HTTP support with cookies.');

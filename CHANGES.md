@@ -2,7 +2,7 @@
 
 ## 1.0.0: 19 Feb 2019
 - RENAME main class MWClient --> MWSite
-- REFACT: SPLIT classes across `HttpPipe`, `HttpCall`, `HttpSession`(filters) & `MwSite`,
+- REFACT: SPLIT classes across `HttpPipeline`, `HttpCall`, `HttpSession`(filters) & `MwSite`,
   so client operations can inspect and modify request & response with callbaks (filters)
   (ala [apache axis](http://axis.apache.org/axis2/java/core/docs/userguide.html#handlessoap)).
 - Refact DatumError --> MWError, inherit from HttpCall; (to contain URL, response & History).

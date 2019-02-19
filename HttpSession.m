@@ -1,16 +1,16 @@
 classdef HttpSession < handle
-    % HttpPipe filters for storing redirects & cookies from requests.
+    % HttpPipeline filters for storing redirects & cookies from requests.
     %
     % EXAMPLE:
     %
     %    %% Setup pipeline (only once).
     %    %
-    %    pipe = HttpPipe();
-    %    pipe.appendReqFilter(@obj.sessionRequestFilter);
-    %    pipe.appendRespFilter(@obj.sessionResponeFilter);
+    %    pipeline = HttpPipe();
+    %    pipeline.appendReqFilter(@obj.sessionRequestFilter);
+    %    pipeline.appendRespFilter(@obj.sessionResponeFilter);
     %
     %    call = HttpCall(url, method, headers, body, options);
-    %    [response, history] = pipe.doCall(call);
+    %    [response, history] = pipeline.doCall(call);
     %
     % NOTES:
 	% * Based on https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
@@ -70,7 +70,7 @@ classdef HttpSession < handle
             % INPUT:
             % 	call: HttpCall
             % NOTES:
-            % * Request-filter for `HttpPipe`.
+            % * Request-filter for `HttpPipeline`.
             % * Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
         
             uri = httpcall.uri;
@@ -103,7 +103,7 @@ classdef HttpSession < handle
             % INPUT:
             % 	call: HttpCall
             % NOTES:
-            % * Respone-filter for `HttpPipe`.
+            % * Respone-filter for `HttpPipeline`.
             % * Adapted from: https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
 
             if httpcall.response.StatusCode ~= matlab.net.http.StatusCode.OK
