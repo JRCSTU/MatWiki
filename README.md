@@ -3,7 +3,6 @@
 | release    | 1.0.0                                                        |
 | rel_date   | 19 Feb 2019                                             |
 | home       | https://github.com/JRCSTU/MatWiki                       |
-| maintainer | Kostis Anagnostopoulos (ankostis@gmail.com)             |
 | license    | [EUPL 1.2](https://joinup.ec.europa.eu/collection/eupl) |
 | copyright  | [2019 European Commission](https://ec.europa.eu/jrc/)   |
 
