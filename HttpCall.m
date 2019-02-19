@@ -16,12 +16,12 @@ classdef HttpCall < handle
     % * WARN: UNTESTED Matlab < 9.4 (< R2018a) with urlencoded parameters in the POST's body,
     %     where HTTP support for "application/x-www-form-urlencoded" in non excistent!
 	% * Based on https://www.mathworks.com/help/matlab/matlab_external/send-http-message.html
-    % 
+    %
+    %
     % Copyright 2019 European Commission (JRC);
     % Licensed under the EUPL (the 'Licence');
     % You may not use this work except in compliance with the Licence.
     % You may obtain a copy of the Licence at: http://ec.europa.eu/idabc/eupl
-    % Author: ankostis@gmail.com
 
     properties
         uri         % string | matlab.net.URI
@@ -149,7 +149,7 @@ classdef HttpCall < handle
             % OUTPUT:
             % headers: matlab.net.http.HeaderField (possibly 0x0)
             % THROWS:
-            %   DatumError(arg, 'HttpCall:invalidHeadersArg')
+            %   MWError(arg, 'HttpCall:invalidHeadersArg')
             % EXAMPLES:
             %   HttpCall.makeHeaders([]) OR ({}) OR ('')	--> 0x0 HeaderField 
             %   HttpCall.makeHeaders('a')                --> a=

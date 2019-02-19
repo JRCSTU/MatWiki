@@ -37,7 +37,6 @@ classdef MWSite < handle
     % Licensed under the EUPL (the 'Licence');
     % You may not use this work except in compliance with the Licence.
     % You may obtain a copy of the Licence at: http://ec.europa.eu/idabc/eupl
-    % Author: ankostis@gmail.com
 
     properties (Constant)
         % Informative, and also used to derive the `UserAgent` header.
@@ -150,7 +149,7 @@ classdef MWSite < handle
             % INPUT:
             %   user/pswd:    string
             % THROWS:
-            %   DatumError: on any login-error
+            %   MWError: on any login-error
             
             narginchk(3, 3);
             
@@ -165,7 +164,7 @@ classdef MWSite < handle
             login = response.Body.Data.login;
             
             if ~strcmp(login.result, 'Success')
-                DatumError(response, 'MWSite:loginDenied', ...
+                MWError(response, 'MWSite:loginDenied', ...
                     '%s: cannot login due to: %s, %s', ...
                     string(obj.ApiUri), login.result, jsonencode(login.reason)).throw();
             end
@@ -300,14 +299,14 @@ classdef MWSite < handle
             
             if isfield(result, 'errors')
                 % If req-param `formatversion!=2` this prop becomes singular: 'error'!
-                DatumError(response, 'MWSite:gotError', ...
+                MWError(response, 'MWSite:gotError', ...
                     '%s: MediaWiki-API-Error: %s\n\n%s', ...
                     uri, strjoin({result.errors.code}, ', '), jsonencode(result.errors)).throw();
             elseif ~isempty(apiErr)
-                DatumError(response, 'MWSite:APIError', ...
+                MWError(response, 'MWSite:APIError', ...
                     '%s: %s\n\n%s', uri, apiErr, response.Body.Data).throw();
             elseif isstring(result) && contains(result, '<title>MediaWiki API help')
-                DatumError(response, 'MWSite:gotApiHelpPage', ...
+                MWError(response, 'MWSite:gotApiHelpPage', ...
                     '%s: returned just the API help-page! (no `action` param given?)', uri).throw();
             end
         end
@@ -342,7 +341,7 @@ classdef MWSite < handle
             %  OUTPUT:
             %   obj: myself, for chained invocations.
             % THROWS:
-            %   DatumError: on any login-error
+            %   MWError: on any login-error
             
             % Delete any auth-cookie, or 'api-login-fail-badsessionprovider' error.
             obj.Cookies = [];

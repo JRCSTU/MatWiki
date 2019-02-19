@@ -19,7 +19,6 @@ classdef HttpPipe < handle
     % Licensed under the EUPL (the 'Licence');
     % You may not use this work except in compliance with the Licence.
     % You may obtain a copy of the Licence at: http://ec.europa.eu/idabc/eupl
-    % Author: ankostis@gmail.com
 
     properties
         % cellarray of: @func(httpCall) | {}
@@ -125,7 +124,7 @@ classdef HttpPipe < handle
             %   DatumEx: last response's Status != OK; the Datum contains the original response.
 
             if call.response.StatusCode ~= matlab.net.http.StatusCode.OK
-                DatumError(response, ...
+                MWError(response, ...
                     sprintf('HttpError:%s', response.StatusCode), ...
                     '%s(%s): %s(%d) \n\n%s', ...
                     method, uri, response.StatusCode, response.StatusCode, response.Body).throwAsCaller();
