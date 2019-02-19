@@ -1,6 +1,6 @@
 | project    | MatWiki: A (semantic) MediaWiki client for Matlab.      |
 |------------|---------------------------------------------------------|
-| release    | 1.0.0.dev2                                                   |
+| release    | 1.0.0                                                        |
 | rel_date   | 19 Feb 2019                                             |
 | home       | https://github.com/JRCSTU/MatWiki                       |
 | maintainer | Kostis Anagnostopoulos (ankostis@gmail.com)             |
